@@ -1,0 +1,2225 @@
+/*@!Encoding:1252*/
+includes
+{
+  #include "InfoCodeStrings.cin"
+}
+
+variables
+{
+  const int RCV_BUFFER_SIZE = 96;//number of elements needs to be devisable by 6.
+  const int RCV_INFOENTRY_EMPTY = 0xFF;
+  const int false = 0;
+  const int true = 1;
+
+  byte rcvd_pages[2] = {0,0};//EV = 0, SE = 1
+  byte info_codes_rcv_buff[2][RCV_BUFFER_SIZE];
+
+  enum ID_STATUS_TYPE {ID_INCOMPLETE = 0, ID_COMPLETE = 1, DATA = 2} se_id_status = ID_INCOMPLETE, ev_id_status = ID_INCOMPLETE;
+
+  char Id_Status_strings[3][20] = {"ID_INCOMPLETE", "ID_COMPLETE", "DATA" };
+  char xmit_crc_status[3][20] = {"Not Transmitted", "Transmitted", "Reserved"};
+  char rcv_crc_status[5][20] = {"Not Checked", "Matches", "Does not Match", "No Full Cycle", "Reserved"};
+
+  byte ev_buffer[7], se_buffer[7];
+  byte ev_id_page_number, se_id_page_number;
+
+  ///>Declarations
+
+  byte EvPropDataIdent;
+  byte EvPropDataRev;
+  dword EvCrc32;
+  byte SePropDataIdent;
+  byte SePropDataRev;
+  dword SeCrc32;
+  dword EvOdometer;
+  byte EvStatusInletLatch;
+  byte EvStatusInletOverride;
+  byte EvStatusInletLock;
+  byte EvNumberJ2012Dtcs;
+  byte EvJ2012DtcStatus;
+  byte EvJ2012DtcCount;
+  dword EvHVESSDishargeCapacity;
+  dword EvHVESSChargeCapacity;
+  dword EvEnergyForDeparture;
+  word EvTimeToDeparture;
+  word EvHVESSRange;
+  word EvFuelRange;
+  word EvEVTimeToEnergyForDept;
+  word EvDurMin;
+  word EvChaDurMax;
+  word EvDschDurMax;
+  byte EvTimeReqNum;
+  word EvEVTimeToRange;
+  word EvEVTimeToEnergy;
+  word EvHVESSVoltage;
+  word EvHVESSCurrent;
+  byte EvHVESSHealth;
+  byte EvHVESSUserSOC;
+  word EvACActivePower;
+  word EvACReactivePower;
+  byte EvACFrequency;
+  word EvL1NVolts;
+  word EvL2NVolts;
+  word EvL3NVolts;
+  word EvAmbientTemp;
+  word EvCabinTemp;
+  word EvHVESSCellTemp;
+  word EvMaxHVESSTemp;
+  word EvMinHVESSTemp;
+  byte EvHVESSElecTemp;
+  word EvMaxHVESSCellVolt;
+  word EvMinHVESSCellVolt;
+  word EvNumHVESSCellBalancing;
+  byte EvStatusCellVoltDiff;
+  byte EvStatusCellBal;
+  byte EvActiveCellBal;
+  word EvChargerTemp;
+  word EvMaxChargerTemp;
+  byte EvInletTemp;
+  byte EvHVESSTemp;
+  word SeAmbientTemp;
+  byte SeConnectorTemp;
+  byte SeOutletTemp;
+  byte SeEvStatusOutletOverride;
+  byte SeEvStatusOutletLock;
+  byte SeRmtMgmtStatus;
+  byte SeEvTripStatus;
+  byte SeSeTripStatus;
+  byte SeExptTripPerct;
+  byte SeTimeReqNum;
+  word SeHVESSRangeCalc;
+  dword SeHVESSEnergyCalc;
+
+  char SeEVSEID[41];
+  char SeSECCID[71];
+  char SeSerialNum[43];
+  char SeFirmwareRevision[29];
+  char SeManufacturer[43];
+  char SePublicName[43];
+  char SePlcMac48Address[7];
+  char SeWiFiMac64Address1[9];
+  char SeWiFiMac64Address2[9];
+  char SeWiFiMac64Address3[9];
+  char SeWiFiMac64Address4[9];
+  char SeWiFiMac64Address5[9];
+  char SeWiFiMac64Address6[9];
+  char SeWiFiMac64Address7[9];
+  char SePropDataSymb[6];
+  char EvVIN[18];
+  char EvEMAID[19];
+  char EvEVCCID[71];
+  char EvSerialNum[43];
+  char EvDriverID[22];
+  char EvVehicleName[22];
+  char EvFirmwareRevision[29];
+  char EvManufacturer[43];
+  char EvPropDataSymb[6];
+  char EvJ2012Dtc[6];
+  ///<Declarations
+
+}
+
+on linFrame SeInfoList
+{
+  byte rcv_page;
+  rcv_page = this.SeInfoPageNumber;
+
+  rcvd_pages[1]++;
+  if (rcv_page == 0) rcvd_pages[1] = 1;      //make sure we can resynchronize
+
+  if (!(rcv_page*6 > RCV_BUFFER_SIZE))  {    //don't overflow the buffer
+    info_codes_rcv_buff[1][rcv_page*6]   = this.SeInfoEntry1;
+    info_codes_rcv_buff[1][rcv_page*6+1] = this.SeInfoEntry2;
+    info_codes_rcv_buff[1][rcv_page*6+2] = this.SeInfoEntry3;
+    info_codes_rcv_buff[1][rcv_page*6+3] = this.SeInfoEntry4;
+    info_codes_rcv_buff[1][rcv_page*6+4] = this.SeInfoEntry5;
+    info_codes_rcv_buff[1][rcv_page*6+5] = this.SeInfoEntry6;
+  }
+
+  if ( (rcv_page + 1 == rcvd_pages[1]) && (info_codes_rcv_buff[1][rcv_page*6+5] == RCV_INFOENTRY_EMPTY) ) {
+    parse_info_codes(1);
+    rcvd_pages[1] = 0;
+  }
+
+}
+
+on linFrame EvInfoList
+{
+  byte rcv_page;
+  rcv_page = this.EvInfoPageNumber;
+
+  rcvd_pages[0]++;
+  if (rcv_page == 0) rcvd_pages[0] = 1;      //make sure we can resynchronize
+
+  if (!(rcv_page*6 > RCV_BUFFER_SIZE))  {    //don't overflow the buffer
+    info_codes_rcv_buff[0][rcv_page*6]   = this.EvInfoEntry1;
+    info_codes_rcv_buff[0][rcv_page*6+1] = this.EvInfoEntry2;
+    info_codes_rcv_buff[0][rcv_page*6+2] = this.EvInfoEntry3;
+    info_codes_rcv_buff[0][rcv_page*6+3] = this.EvInfoEntry4;
+    info_codes_rcv_buff[0][rcv_page*6+4] = this.EvInfoEntry5;
+    info_codes_rcv_buff[0][rcv_page*6+5] = this.EvInfoEntry6;
+  }
+
+  if ( (rcv_page + 1 == rcvd_pages[0]) && (info_codes_rcv_buff[0][rcv_page*6+5] == RCV_INFOENTRY_EMPTY) ) {
+    parse_info_codes(0);
+    rcvd_pages[0] = 0;
+  }
+
+}
+
+//We must handle empties between valid codes as the standard does not disallow this
+void parse_info_codes(int side)
+{
+  byte i, j;
+  byte index;
+  byte size     = RCV_BUFFER_SIZE / 6; //we know size is evenly divisible by 6
+  byte new_rcvd_codes[2][32];
+  byte current_rcvd_codes[2][32];
+  byte partial, check_bit;
+
+  for (i = 0; i < 32; i++)  {
+    new_rcvd_codes[side][i] = 0;
+  }
+
+  for (i = 0; i < size; i++) {
+    for (j = 0; j < 6; j++) {
+      index = i * 6 + j;
+      if (info_codes_rcv_buff[side][index] != RCV_INFOENTRY_EMPTY) {
+        new_rcvd_codes[side][(info_codes_rcv_buff[side][index]) >> 3] |= (1 << ((info_codes_rcv_buff[side][index]) & 0x07));
+      }
+    }
+    if (info_codes_rcv_buff[side][index] == RCV_INFOENTRY_EMPTY) break;
+  }
+
+  for (i = 0; i < 32; i++)	{
+    partial = (new_rcvd_codes[side][i] ^ current_rcvd_codes[side][i]);
+    if (partial)	{
+      for (j = 0; j < 8; j++)	{
+        check_bit = (1 << j);
+        if (partial & check_bit)	{
+          if (partial & check_bit & current_rcvd_codes[side][i])	{
+            print_info_code_change(side, ((i << 3) | j), false);
+          }	else{
+            print_info_code_change(side, ((i << 3) | j), true);
+          }
+        }
+      }
+    }
+  }
+
+  for (i = 0; i < 32; i++)  {
+    current_rcvd_codes[side][i] = new_rcvd_codes[side][i];
+  }
+}
+
+void print_info_code_change(byte side, byte code, byte op)
+{
+  char op_string[2][10] = {"clears", "sets"};
+
+  if (side) {
+    writeTextColor(1,0xFF,0x40,0x00);
+    write("%f-SE %s code# 0x%02X: %s", timenow()/100000.0, op_string[op], code, SE_Info_Codes[code]);
+  } else  {
+    writeTextColor(1,0x00,0x10,0xFF);
+    write("%f-EV %s code# 0x%02X: %s", timenow()/100000.0, op_string[op], code, EV_Info_Codes[code]);
+  }
+}
+
+on linFrame SeID
+{
+  se_id_page_number = this.SeIDPage;
+
+  se_buffer[0] = this.SeIDByteA;
+  se_buffer[1] = this.SeIDByteB;
+  se_buffer[2] = this.SeIDByteC;
+  se_buffer[3] = this.SeIDByteD;
+  se_buffer[4] = this.SeIDByteE;
+  se_buffer[5] = this.SeIDByteF;
+  se_buffer[6] = this.SeIDByteG;
+
+  if ((se_id_status == ID_INCOMPLETE) || (se_id_status == ID_COMPLETE)) {
+    se_id_parse();
+  } else{
+    se_data_parse();
+  }
+}
+
+on linFrame EvID
+{
+  ev_id_page_number = this.EvIDPage;
+
+  ev_buffer[0] = this.EvIDByteA;
+  ev_buffer[1] = this.EvIDByteB;
+  ev_buffer[2] = this.EvIDByteC;
+  ev_buffer[3] = this.EvIDByteD;
+  ev_buffer[4] = this.EvIDByteE;
+  ev_buffer[5] = this.EvIDByteF;
+  ev_buffer[6] = this.EvIDByteG;
+
+  if ((ev_id_status == ID_INCOMPLETE) || (ev_id_status == ID_COMPLETE)) {
+    ev_id_parse();
+  } else{
+    ev_data_parse();
+  }
+}
+
+void copy_page(byte source[], char destination[], byte src_offset, byte dest_offset, byte size, byte string) {
+  int i;
+
+  for(i=0; i<size; i++) {
+    destination[i+dest_offset] = source[i+src_offset];
+    if (string) {
+        if (source[i] == 0xFF)  {
+          destination[i+dest_offset] = '\0';
+        }
+  }
+  }
+}
+
+void se_id_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(1,0xFF,0x5D,0x00);
+
+  ///>se_id_parse
+  switch(se_id_page_number) {
+    case 0:
+      pgs_to_read = se_buffer[1];
+      se_id_status = (enum ID_STATUS_TYPE)se_buffer[0];
+      last_pg = se_buffer[3];
+      pgs_read = 1;
+      first_pg = se_buffer[2];
+      se_crc = (se_buffer[4] >> 4) & 0x0F;
+      ev_crc = (se_buffer[4]) & 0x0F;
+      write("%f-SE Status %s", timenow()/100000.0, Id_Status_strings[se_id_status]);
+      write("%f-SE Pages: First %d; Last %d; Number %d", timenow()/100000.0, first_pg, last_pg, pgs_to_read);
+      if (se_crc > 1) {
+        se_crc = 2;
+        }
+        if (ev_crc > 1) {
+          if (ev_crc < 0xE)  {
+            ev_crc = 4; //Reserved
+          } else  {
+            ev_crc = ev_crc - 12;
+          }
+        }
+      write("%f-SE CRC Stat: %s; EV CRC Stat: %s", timenow()/100000.0, xmit_crc_status[se_crc], rcv_crc_status[ev_crc]);
+      break;
+    case 1:
+      copy_page(se_buffer, SeEVSEID, 0, 0, 7, true);
+      break;
+    case 2:
+      copy_page(se_buffer, SeEVSEID, 0, 7, 7, true);
+      break;
+    case 3:
+      copy_page(se_buffer, SeEVSEID, 0, 14, 7, true);
+      break;
+    case 4:
+      copy_page(se_buffer, SeEVSEID, 0, 21, 7, true);
+      break;
+    case 5:
+      copy_page(se_buffer, SeEVSEID, 0, 28, 7, true);
+      break;
+    case 6:
+      copy_page(se_buffer, SeEVSEID, 0, 35, 5, true);
+      break;
+    case 7:
+      copy_page(se_buffer, SeSECCID, 0, 0, 7, true);
+      break;
+    case 8:
+      copy_page(se_buffer, SeSECCID, 0, 7, 7, true);
+      break;
+    case 9:
+      copy_page(se_buffer, SeSECCID, 0, 14, 7, true);
+      break;
+    case 10:
+      copy_page(se_buffer, SeSECCID, 0, 21, 7, true);
+      break;
+    case 11:
+      copy_page(se_buffer, SeSECCID, 0, 28, 7, true);
+      break;
+    case 12:
+      copy_page(se_buffer, SeSECCID, 0, 35, 7, true);
+      break;
+    case 13:
+      copy_page(se_buffer, SeSECCID, 0, 42, 7, true);
+      break;
+    case 14:
+      copy_page(se_buffer, SeSECCID, 0, 49, 7, true);
+      break;
+    case 15:
+      copy_page(se_buffer, SeSECCID, 0, 56, 7, true);
+      break;
+    case 16:
+      copy_page(se_buffer, SeSECCID, 0, 63, 7, true);
+      break;
+    case 17:
+      copy_page(se_buffer, SeSerialNum, 0, 0, 7, true);
+      break;
+    case 18:
+      copy_page(se_buffer, SeSerialNum, 0, 7, 7, true);
+      break;
+    case 19:
+      copy_page(se_buffer, SeSerialNum, 0, 14, 7, true);
+      break;
+    case 20:
+      copy_page(se_buffer, SeSerialNum, 0, 21, 7, true);
+      break;
+    case 21:
+      copy_page(se_buffer, SeSerialNum, 0, 28, 7, true);
+      break;
+    case 22:
+      copy_page(se_buffer, SeSerialNum, 0, 35, 7, true);
+      break;
+    case 23:
+      copy_page(se_buffer, SeFirmwareRevision, 0, 0, 7, true);
+      break;
+    case 24:
+      copy_page(se_buffer, SeFirmwareRevision, 0, 7, 7, true);
+      break;
+    case 25:
+      copy_page(se_buffer, SeFirmwareRevision, 0, 14, 7, true);
+      break;
+    case 26:
+      copy_page(se_buffer, SeFirmwareRevision, 0, 21, 7, true);
+      break;
+    case 27:
+      copy_page(se_buffer, SeManufacturer, 0, 0, 7, true);
+      break;
+    case 28:
+      copy_page(se_buffer, SeManufacturer, 0, 7, 7, true);
+      break;
+    case 29:
+      copy_page(se_buffer, SeManufacturer, 0, 14, 7, true);
+      break;
+    case 30:
+      copy_page(se_buffer, SeManufacturer, 0, 21, 7, true);
+      break;
+    case 31:
+      copy_page(se_buffer, SeManufacturer, 0, 28, 7, true);
+      break;
+    case 32:
+      copy_page(se_buffer, SeManufacturer, 0, 35, 7, true);
+      break;
+    case 33:
+      copy_page(se_buffer, SePublicName, 0, 0, 7, true);
+      break;
+    case 34:
+      copy_page(se_buffer, SePublicName, 0, 7, 7, true);
+      break;
+    case 35:
+      copy_page(se_buffer, SePublicName, 0, 14, 7, true);
+      break;
+    case 36:
+      copy_page(se_buffer, SePublicName, 0, 21, 7, true);
+      break;
+    case 37:
+      copy_page(se_buffer, SePublicName, 0, 28, 7, true);
+      break;
+    case 38:
+      copy_page(se_buffer, SePublicName, 0, 35, 7, true);
+      break;
+    case 39:
+      copy_page(se_buffer, SePlcMac48Address, 0, 0, 6, true);
+      break;
+    case 40:
+      copy_page(se_buffer, SeWiFiMac64Address1, 0, 0, 7, true);
+      break;
+    case 41:
+      copy_page(se_buffer, SeWiFiMac64Address1, 0, 7, 1, true);
+      copy_page(se_buffer, SeWiFiMac64Address2, 1, 0, 6, true);
+      break;
+    case 42:
+      copy_page(se_buffer, SeWiFiMac64Address2, 0, 6, 2, true);
+      copy_page(se_buffer, SeWiFiMac64Address3, 2, 0, 5, true);
+      break;
+    case 43:
+      copy_page(se_buffer, SeWiFiMac64Address3, 0, 5, 3, true);
+      copy_page(se_buffer, SeWiFiMac64Address4, 3, 0, 4, true);
+      break;
+    case 44:
+      copy_page(se_buffer, SeWiFiMac64Address4, 0, 4, 4, true);
+      copy_page(se_buffer, SeWiFiMac64Address5, 4, 0, 3, true);
+      break;
+    case 45:
+      copy_page(se_buffer, SeWiFiMac64Address5, 0, 3, 5, true);
+      copy_page(se_buffer, SeWiFiMac64Address6, 5, 0, 2, true);
+      break;
+    case 46:
+      copy_page(se_buffer, SeWiFiMac64Address6, 0, 2, 6, true);
+      copy_page(se_buffer, SeWiFiMac64Address7, 6, 0, 1, true);
+      break;
+    case 47:
+      copy_page(se_buffer, SeWiFiMac64Address7, 0, 1, 7, true);
+      break;
+    case 48:
+      SePropDataIdent = ((byte)se_buffer[0]);
+      if(SePropDataIdent >= 0xFF){
+        write("%f-SePropDataIdent Not_Available", timenow()/100000.0);
+      } else if(SePropDataIdent >= 0xFE){
+        write("%f-SePropDataIdent Error", timenow()/100000.0);
+      } else if(SePropDataIdent >= 0xFB){
+        write("%f-SePropDataIdent Reserved 0x%X", timenow()/100000.0, (SePropDataIdent));
+      } else {
+        write("%f-SePropDataIdent 0x%02X ", timenow()/100000.0, (SePropDataIdent));
+      }
+      SePropDataRev = ((byte)se_buffer[1]);
+      if(SePropDataRev >= 0xFF){
+        write("%f-SePropDataRev Not_Available", timenow()/100000.0);
+      } else if(SePropDataRev >= 0xFE){
+        write("%f-SePropDataRev Error", timenow()/100000.0);
+      } else if(SePropDataRev >= 0xFB){
+        write("%f-SePropDataRev Reserved 0x%X", timenow()/100000.0, (SePropDataRev));
+      } else {
+        write("%f-SePropDataRev %d count", timenow()/100000.0, (SePropDataRev));
+      }
+      copy_page(se_buffer, SePropDataSymb, 2, 0, 5, true);
+      break;
+    case 97:
+      SeAmbientTemp = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SeAmbientTemp >= 0xFF00){
+        write("%f-SeAmbientTemp Not_Available", timenow()/100000.0);
+      } else if(SeAmbientTemp >= 0xFE00){
+        write("%f-SeAmbientTemp Error", timenow()/100000.0);
+      } else if(SeAmbientTemp >= 0xFB00){
+        write("%f-SeAmbientTemp Reserved 0x%X", timenow()/100000.0, (SeAmbientTemp));
+      } else {
+        write("%f-SeAmbientTemp %.3lf C", timenow()/100000.0, ((double)SeAmbientTemp * 0.031250) - 273);
+      }
+      SeConnectorTemp = ((byte)se_buffer[2]);
+      if(SeConnectorTemp >= 0xFF){
+        write("%f-SeConnectorTemp Not_Available", timenow()/100000.0);
+      } else if(SeConnectorTemp >= 0xFE){
+        write("%f-SeConnectorTemp Error", timenow()/100000.0);
+      } else if(SeConnectorTemp >= 0xFB){
+        write("%f-SeConnectorTemp Reserved 0x%X", timenow()/100000.0, (SeConnectorTemp));
+      } else {
+        write("%f-SeConnectorTemp %d C", timenow()/100000.0, (SeConnectorTemp) - 40);
+      }
+      SeOutletTemp = ((byte)se_buffer[3]);
+      if(SeOutletTemp >= 0xFF){
+        write("%f-SeOutletTemp Not_Available", timenow()/100000.0);
+      } else if(SeOutletTemp >= 0xFE){
+        write("%f-SeOutletTemp Error", timenow()/100000.0);
+      } else if(SeOutletTemp >= 0xFB){
+        write("%f-SeOutletTemp Reserved 0x%X", timenow()/100000.0, (SeOutletTemp));
+      } else {
+        write("%f-SeOutletTemp %d C", timenow()/100000.0, (SeOutletTemp) - 40);
+      }
+      SeEvStatusOutletOverride = ((se_buffer[4] >> 0) & 0x03);
+      switch(SeEvStatusOutletOverride)  {
+        case 0x00:
+          write("%f-SeEvStatusOutletOverride not_active", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        case 0x01:
+          write("%f-SeEvStatusOutletOverride active", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        case 0x02:
+          write("%f-SeEvStatusOutletOverride Error", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        case 0x03:
+          write("%f-SeEvStatusOutletOverride Not_available", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        default:
+          write("%f-SeEvStatusOutletOverride Reserved 0x%02X ", timenow()/100000.0, SeEvStatusOutletOverride);
+      }
+      SeEvStatusOutletLock = ((se_buffer[4] >> 2) & 0x07);
+      switch(SeEvStatusOutletLock)  {
+        case 0x00:
+          write("%f-SeEvStatusOutletLock Unlocked", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x01:
+          write("%f-SeEvStatusOutletLock Locked", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x02:
+          write("%f-SeEvStatusOutletLock In_transition", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x05:
+          write("%f-SeEvStatusOutletLock No_lock", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x06:
+          write("%f-SeEvStatusOutletLock Error", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x07:
+          write("%f-SeEvStatusOutletLock Not_available", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        default:
+          write("%f-SeEvStatusOutletLock Reserved 0x%02X ", timenow()/100000.0, SeEvStatusOutletLock);
+      }
+      break;
+    case 98:
+      SeRmtMgmtStatus = ((byte)se_buffer[0]);
+      switch(SeRmtMgmtStatus)  {
+        case 0x00:
+          write("%f-SeRmtMgmtStatus connected", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x01:
+          write("%f-SeRmtMgmtStatus connecting", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x02:
+          write("%f-SeRmtMgmtStatus not_connected", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x03:
+          write("%f-SeRmtMgmtStatus fallback", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x04:
+          write("%f-SeRmtMgmtStatus local", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0xFE:
+          write("%f-SeRmtMgmtStatus error", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0xFF:
+          write("%f-SeRmtMgmtStatus none_or_status_unknown", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        default:
+          write("%f-SeRmtMgmtStatus Reserved 0x%02X ", timenow()/100000.0, SeRmtMgmtStatus);
+      }
+      SeEvTripStatus = ((byte)se_buffer[1]);
+      switch(SeEvTripStatus)  {
+        case 0x00:
+          write("%f-SeEvTripStatus not_present", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0x01:
+          write("%f-SeEvTripStatus following", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0x02:
+          write("%f-SeEvTripStatus cannot_be_met", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0xFE:
+          write("%f-SeEvTripStatus invalid", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0xFF:
+          write("%f-SeEvTripStatus not_supported", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        default:
+          write("%f-SeEvTripStatus Reserved 0x%02X ", timenow()/100000.0, SeEvTripStatus);
+      }
+      SeSeTripStatus = ((byte)se_buffer[2]);
+      switch(SeSeTripStatus)  {
+        case 0x00:
+          write("%f-SeSeTripStatus not_present", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0x01:
+          write("%f-SeSeTripStatus following", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0x02:
+          write("%f-SeSeTripStatus cannot_be_met", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0x03:
+          write("%f-SeSeTripStatus EV_precedence", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0xFE:
+          write("%f-SeSeTripStatus cannot_retrieve", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0xFF:
+          write("%f-SeSeTripStatus not_supported", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        default:
+          write("%f-SeSeTripStatus Reserved 0x%02X ", timenow()/100000.0, SeSeTripStatus);
+      }
+      SeExptTripPerct = ((byte)se_buffer[3]);
+      if(SeExptTripPerct >= 0xFF){
+        write("%f-SeExptTripPerct Not_Available", timenow()/100000.0);
+      } else if(SeExptTripPerct >= 0xFE){
+        write("%f-SeExptTripPerct Error", timenow()/100000.0);
+      } else if(SeExptTripPerct >= 0xFB){
+        write("%f-SeExptTripPerct Reserved 0x%X", timenow()/100000.0, (SeExptTripPerct));
+      } else {
+        write("%f-SeExptTripPerct %.3lf %%", timenow()/100000.0, ((double)SeExptTripPerct * 0.400000));
+      }
+      break;
+    case 99:
+      SeTimeReqNum = ((byte)se_buffer[0]);
+      if(SeTimeReqNum >= 0xFF){
+        write("%f-SeTimeReqNum Not_Available", timenow()/100000.0);
+      } else if(SeTimeReqNum >= 0xFE){
+        write("%f-SeTimeReqNum Error", timenow()/100000.0);
+      } else if(SeTimeReqNum >= 0xFB){
+        write("%f-SeTimeReqNum Reserved 0x%X", timenow()/100000.0, (SeTimeReqNum));
+      } else {
+        write("%f-SeTimeReqNum %d count", timenow()/100000.0, (SeTimeReqNum));
+      }
+      SeHVESSRangeCalc = ((word)se_buffer[2] << 8) | ((word)se_buffer[1]);
+      if(SeHVESSRangeCalc >= 0xFF00){
+        write("%f-SeHVESSRangeCalc Not_Available", timenow()/100000.0);
+      } else if(SeHVESSRangeCalc >= 0xFE00){
+        write("%f-SeHVESSRangeCalc Error", timenow()/100000.0);
+      } else if(SeHVESSRangeCalc >= 0xFB00){
+        write("%f-SeHVESSRangeCalc Reserved 0x%X", timenow()/100000.0, (SeHVESSRangeCalc));
+      } else {
+        write("%f-SeHVESSRangeCalc %d km", timenow()/100000.0, (SeHVESSRangeCalc));
+      }
+      SeHVESSEnergyCalc = ((dword)se_buffer[5] << 16) | ((dword)se_buffer[4] << 8) | ((dword)se_buffer[3]);
+      if(SeHVESSEnergyCalc >= 0xFF0000){
+        write("%f-SeHVESSEnergyCalc Not_Available", timenow()/100000.0);
+      } else if(SeHVESSEnergyCalc >= 0xFE0000){
+        write("%f-SeHVESSEnergyCalc Error", timenow()/100000.0);
+      } else if(SeHVESSEnergyCalc >= 0xFB0000){
+        write("%f-SeHVESSEnergyCalc Reserved 0x%X", timenow()/100000.0, (SeHVESSEnergyCalc));
+      } else {
+        write("%f-SeHVESSEnergyCalc %.3lf kWh", timenow()/100000.0, ((double)SeHVESSEnergyCalc * 0.001000));
+      }
+      break;
+    case 251:
+      SeCrc32 = ((dword)se_buffer[3] << 24) | ((dword)se_buffer[2] << 16) | ((dword)se_buffer[1] << 8) | ((dword)se_buffer[0]);
+        write("%f-SeCrc32 0x%08X", timenow()/100000.0, (SeCrc32));
+      break;
+  }
+  ///<se_id_parse
+
+  if ((pgs_read == pgs_to_read) && (se_id_page_number == last_pg))  {
+    write("%f---EVSEID:%s, Serial:%s", timenow()/100000.0, SeEVSEID, SeSerialNum);
+    write("%f---SECCID:%s", timenow()/100000.0, SeSECCID);
+    write("%f---Manu:%s, Firmware:%s", timenow()/100000.0, SeManufacturer, SeFirmwareRevision);
+    write("%f---Public:%s", timenow()/100000.0, SePublicName);
+  }
+
+}
+
+void ev_id_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(1,0x00,0x2A,0xFF);
+
+  ///>ev_id_parse
+  switch(ev_id_page_number) {
+    case 0:
+      pgs_to_read = ev_buffer[1];
+      ev_id_status = (enum ID_STATUS_TYPE)ev_buffer[0];
+      last_pg = ev_buffer[3];
+      pgs_read = 1;
+      first_pg = ev_buffer[2];
+      ev_crc = (ev_buffer[4] >> 4) & 0x0F;
+      se_crc = (ev_buffer[4]) & 0x0F;
+      write("%f-EV Status %s", timenow()/100000.0, Id_Status_strings[ev_id_status]);
+      write("%f-EV Pages: First %d; Last %d; Number %d", timenow()/100000.0, first_pg, last_pg, pgs_to_read);
+      if (ev_crc > 1) {
+        ev_crc = 2;
+        }
+        if (se_crc > 1) {
+          if (se_crc < 0xE)  {
+            se_crc = 4; //Reserved
+          } else  {
+            se_crc = se_crc - 12;
+          }
+        }
+      write("%f-EV CRC Stat: %s; SE CRC Stat: %s", timenow()/100000.0, xmit_crc_status[ev_crc], rcv_crc_status[se_crc]);
+      break;
+    case 1:
+      copy_page(ev_buffer, EvVIN, 0, 0, 7, true);
+      break;
+    case 2:
+      copy_page(ev_buffer, EvVIN, 0, 7, 7, true);
+      break;
+    case 3:
+      copy_page(ev_buffer, EvVIN, 0, 14, 3, true);
+      break;
+    case 4:
+      copy_page(ev_buffer, EvEMAID, 0, 0, 7, true);
+      break;
+    case 5:
+      copy_page(ev_buffer, EvEMAID, 0, 7, 7, true);
+      break;
+    case 6:
+      copy_page(ev_buffer, EvEMAID, 0, 14, 4, true);
+      break;
+    case 7:
+      copy_page(ev_buffer, EvEVCCID, 0, 0, 7, true);
+      break;
+    case 8:
+      copy_page(ev_buffer, EvEVCCID, 0, 7, 7, true);
+      break;
+    case 9:
+      copy_page(ev_buffer, EvEVCCID, 0, 14, 7, true);
+      break;
+    case 10:
+      copy_page(ev_buffer, EvEVCCID, 0, 21, 7, true);
+      break;
+    case 11:
+      copy_page(ev_buffer, EvEVCCID, 0, 28, 7, true);
+      break;
+    case 12:
+      copy_page(ev_buffer, EvEVCCID, 0, 35, 7, true);
+      break;
+    case 13:
+      copy_page(ev_buffer, EvEVCCID, 0, 42, 7, true);
+      break;
+    case 14:
+      copy_page(ev_buffer, EvEVCCID, 0, 49, 7, true);
+      break;
+    case 15:
+      copy_page(ev_buffer, EvEVCCID, 0, 56, 7, true);
+      break;
+    case 16:
+      copy_page(ev_buffer, EvEVCCID, 0, 63, 7, true);
+      break;
+    case 17:
+      copy_page(ev_buffer, EvSerialNum, 0, 0, 7, true);
+      break;
+    case 18:
+      copy_page(ev_buffer, EvSerialNum, 0, 7, 7, true);
+      break;
+    case 19:
+      copy_page(ev_buffer, EvSerialNum, 0, 14, 7, true);
+      break;
+    case 20:
+      copy_page(ev_buffer, EvSerialNum, 0, 21, 7, true);
+      break;
+    case 21:
+      copy_page(ev_buffer, EvSerialNum, 0, 28, 7, true);
+      break;
+    case 22:
+      copy_page(ev_buffer, EvSerialNum, 0, 35, 7, true);
+      break;
+    case 23:
+      copy_page(ev_buffer, EvDriverID, 0, 0, 7, true);
+      break;
+    case 24:
+      copy_page(ev_buffer, EvDriverID, 0, 7, 7, true);
+      break;
+    case 25:
+      copy_page(ev_buffer, EvDriverID, 0, 14, 7, true);
+      break;
+    case 26:
+      copy_page(ev_buffer, EvVehicleName, 0, 0, 7, true);
+      break;
+    case 27:
+      copy_page(ev_buffer, EvVehicleName, 0, 7, 7, true);
+      break;
+    case 28:
+      copy_page(ev_buffer, EvVehicleName, 0, 14, 7, true);
+      break;
+    case 29:
+      copy_page(ev_buffer, EvFirmwareRevision, 0, 0, 7, true);
+      break;
+    case 30:
+      copy_page(ev_buffer, EvFirmwareRevision, 0, 7, 7, true);
+      break;
+    case 31:
+      copy_page(ev_buffer, EvFirmwareRevision, 0, 14, 7, true);
+      break;
+    case 32:
+      copy_page(ev_buffer, EvFirmwareRevision, 0, 21, 7, true);
+      break;
+    case 33:
+      copy_page(ev_buffer, EvManufacturer, 0, 0, 7, true);
+      break;
+    case 34:
+      copy_page(ev_buffer, EvManufacturer, 0, 7, 7, true);
+      break;
+    case 35:
+      copy_page(ev_buffer, EvManufacturer, 0, 14, 7, true);
+      break;
+    case 36:
+      copy_page(ev_buffer, EvManufacturer, 0, 21, 7, true);
+      break;
+    case 37:
+      copy_page(ev_buffer, EvManufacturer, 0, 28, 7, true);
+      break;
+    case 38:
+      copy_page(ev_buffer, EvManufacturer, 0, 35, 7, true);
+      break;
+    case 39:
+      EvPropDataIdent = ((byte)ev_buffer[0]);
+      write("%f-EvPropDataIdent 0x%02XEnum", timenow()/100000.0, EvPropDataIdent);
+      EvPropDataRev = ((byte)ev_buffer[1]);
+      if(EvPropDataRev >= 0xFF){
+        write("%f-EvPropDataRev Not_Available", timenow()/100000.0);
+      } else if(EvPropDataRev >= 0xFE){
+        write("%f-EvPropDataRev Error", timenow()/100000.0);
+      } else if(EvPropDataRev >= 0xFB){
+        write("%f-EvPropDataRev Reserved 0x%X", timenow()/100000.0, (EvPropDataRev));
+      } else {
+        write("%f-EvPropDataRev 0x%02X ", timenow()/100000.0, (EvPropDataRev));
+      }
+      copy_page(ev_buffer, EvPropDataSymb, 2, 0, 5, true);
+      break;
+    case 97:
+      EvOdometer = ((dword)ev_buffer[3] << 24) | ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+      if(EvOdometer >= 0xFF000000){
+        write("%f-EvOdometer Not_Available", timenow()/100000.0);
+      } else if(EvOdometer >= 0xFE000000){
+        write("%f-EvOdometer Error", timenow()/100000.0);
+      } else if(EvOdometer >= 0xFB000000){
+        write("%f-EvOdometer Reserved 0x%X", timenow()/100000.0, (EvOdometer));
+      } else {
+        write("%f-EvOdometer %.3lf km", timenow()/100000.0, ((double)EvOdometer * 0.125000));
+      }
+      EvStatusInletLatch = ((ev_buffer[4] >> 0) & 0x03);
+      switch(EvStatusInletLatch)  {
+        case 0x00:
+          write("%f-EvStatusInletLatch released", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        case 0x01:
+          write("%f-EvStatusInletLatch engaged", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        case 0x02:
+          write("%f-EvStatusInletLatch Error", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        case 0x03:
+          write("%f-EvStatusInletLatch Not_available", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        default:
+          write("%f-EvStatusInletLatch Reserved 0x%02X ", timenow()/100000.0, EvStatusInletLatch);
+      }
+      EvStatusInletOverride = ((ev_buffer[4] >> 2) & 0x03);
+      switch(EvStatusInletOverride)  {
+        case 0x00:
+          write("%f-EvStatusInletOverride not_active", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        case 0x01:
+          write("%f-EvStatusInletOverride active", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        case 0x02:
+          write("%f-EvStatusInletOverride Error", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        case 0x03:
+          write("%f-EvStatusInletOverride Not_available", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        default:
+          write("%f-EvStatusInletOverride Reserved 0x%02X ", timenow()/100000.0, EvStatusInletOverride);
+      }
+      EvStatusInletLock = ((ev_buffer[4] >> 4) & 0x07);
+      switch(EvStatusInletLock)  {
+        case 0x00:
+          write("%f-EvStatusInletLock Unlocked", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x01:
+          write("%f-EvStatusInletLock Locked", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x02:
+          write("%f-EvStatusInletLock In_transition", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x05:
+          write("%f-EvStatusInletLock No_lock", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x06:
+          write("%f-EvStatusInletLock Error", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x07:
+          write("%f-EvStatusInletLock Not_available", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        default:
+          write("%f-EvStatusInletLock Reserved 0x%02X ", timenow()/100000.0, EvStatusInletLock);
+      }
+      break;
+    case 98:
+      EvNumberJ2012Dtcs = ((byte)ev_buffer[0]);
+      if(EvNumberJ2012Dtcs >= 0xFF){
+        write("%f-EvNumberJ2012Dtcs Not_Available", timenow()/100000.0);
+      } else if(EvNumberJ2012Dtcs >= 0xFE){
+        write("%f-EvNumberJ2012Dtcs Error", timenow()/100000.0);
+      } else if(EvNumberJ2012Dtcs >= 0xFB){
+        write("%f-EvNumberJ2012Dtcs Reserved 0x%X", timenow()/100000.0, (EvNumberJ2012Dtcs));
+      } else {
+        write("%f-EvNumberJ2012Dtcs %d count", timenow()/100000.0, (EvNumberJ2012Dtcs));
+      }
+      copy_page(ev_buffer, EvJ2012Dtc, 1, 0, 5, true);
+      EvJ2012DtcStatus = ((ev_buffer[6] >> 0) & 0x01);
+      switch(EvJ2012DtcStatus)  {
+        case 0x00:
+          write("%f-EvJ2012DtcStatus previously_active", timenow()/100000.0, (EvJ2012DtcStatus));
+          break;
+        case 0x01:
+          write("%f-EvJ2012DtcStatus active", timenow()/100000.0, (EvJ2012DtcStatus));
+          break;
+        default:
+          write("%f-EvJ2012DtcStatus Reserved %d ", timenow()/100000.0, EvJ2012DtcStatus);
+      }
+      EvJ2012DtcCount = ((ev_buffer[6] >> 1) & 0x7F);
+      if(EvJ2012DtcCount >= 0x7F){
+        write("%f-EvJ2012DtcCount Not_Available", timenow()/100000.0);
+      } else if(EvJ2012DtcCount >= 0x7E){
+        write("%f-EvJ2012DtcCount Error", timenow()/100000.0);
+      } else {
+        write("%f-EvJ2012DtcCount %d count", timenow()/100000.0, (EvJ2012DtcCount));
+      }
+      break;
+    case 99:
+      EvHVESSDishargeCapacity = ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+      if(EvHVESSDishargeCapacity >= 0xFF0000){
+        write("%f-EvHVESSDishargeCapacity Not_Available", timenow()/100000.0);
+      } else if(EvHVESSDishargeCapacity >= 0xFE0000){
+        write("%f-EvHVESSDishargeCapacity Error", timenow()/100000.0);
+      } else if(EvHVESSDishargeCapacity >= 0xFB0000){
+        write("%f-EvHVESSDishargeCapacity Reserved 0x%X", timenow()/100000.0, (EvHVESSDishargeCapacity));
+      } else {
+        write("%f-EvHVESSDishargeCapacity %.3lf kWh", timenow()/100000.0, ((double)EvHVESSDishargeCapacity * 0.001000));
+      }
+      EvHVESSChargeCapacity = ((dword)ev_buffer[5] << 16) | ((dword)ev_buffer[4] << 8) | ((dword)ev_buffer[3]);
+      if(EvHVESSChargeCapacity >= 0xFF0000){
+        write("%f-EvHVESSChargeCapacity Not_Available", timenow()/100000.0);
+      } else if(EvHVESSChargeCapacity >= 0xFE0000){
+        write("%f-EvHVESSChargeCapacity Error", timenow()/100000.0);
+      } else if(EvHVESSChargeCapacity >= 0xFB0000){
+        write("%f-EvHVESSChargeCapacity Reserved 0x%X", timenow()/100000.0, (EvHVESSChargeCapacity));
+      } else {
+        write("%f-EvHVESSChargeCapacity %.3lf kWh", timenow()/100000.0, ((double)EvHVESSChargeCapacity * 0.001000));
+      }
+      break;
+    case 100:
+      EvEnergyForDeparture = ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+      if(EvEnergyForDeparture >= 0xFF0000){
+        write("%f-EvEnergyForDeparture Not_Available", timenow()/100000.0);
+      } else if(EvEnergyForDeparture >= 0xFE0000){
+        write("%f-EvEnergyForDeparture Error", timenow()/100000.0);
+      } else if(EvEnergyForDeparture >= 0xFB0000){
+        write("%f-EvEnergyForDeparture Reserved 0x%X", timenow()/100000.0, (EvEnergyForDeparture));
+      } else {
+        write("%f-EvEnergyForDeparture %.3lf kWh", timenow()/100000.0, ((double)EvEnergyForDeparture * 0.001000));
+      }
+      EvTimeToDeparture = ((word)ev_buffer[4] << 8) | ((word)ev_buffer[3]);
+      if(EvTimeToDeparture >= 0xFF00){
+        write("%f-EvTimeToDeparture Not_Available", timenow()/100000.0);
+      } else if(EvTimeToDeparture >= 0xFE00){
+        write("%f-EvTimeToDeparture Error", timenow()/100000.0);
+      } else if(EvTimeToDeparture >= 0xFB00){
+        write("%f-EvTimeToDeparture Reserved 0x%X", timenow()/100000.0, (EvTimeToDeparture));
+      } else {
+        write("%f-EvTimeToDeparture %d min", timenow()/100000.0, (EvTimeToDeparture));
+      }
+      break;
+    case 101:
+      EvHVESSRange = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvHVESSRange >= 0xFF00){
+        write("%f-EvHVESSRange Not_Available", timenow()/100000.0);
+      } else if(EvHVESSRange >= 0xFE00){
+        write("%f-EvHVESSRange Error", timenow()/100000.0);
+      } else if(EvHVESSRange >= 0xFB00){
+        write("%f-EvHVESSRange Reserved 0x%X", timenow()/100000.0, (EvHVESSRange));
+      } else {
+        write("%f-EvHVESSRange %d km", timenow()/100000.0, (EvHVESSRange));
+      }
+      EvFuelRange = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvFuelRange >= 0xFF00){
+        write("%f-EvFuelRange Not_Available", timenow()/100000.0);
+      } else if(EvFuelRange >= 0xFE00){
+        write("%f-EvFuelRange Error", timenow()/100000.0);
+      } else if(EvFuelRange >= 0xFB00){
+        write("%f-EvFuelRange Reserved 0x%X", timenow()/100000.0, (EvFuelRange));
+      } else {
+        write("%f-EvFuelRange %d km", timenow()/100000.0, (EvFuelRange));
+      }
+      EvEVTimeToEnergyForDept = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvEVTimeToEnergyForDept >= 0xFF00){
+        write("%f-EvEVTimeToEnergyForDept Not_Available", timenow()/100000.0);
+      } else if(EvEVTimeToEnergyForDept >= 0xFE00){
+        write("%f-EvEVTimeToEnergyForDept Error", timenow()/100000.0);
+      } else if(EvEVTimeToEnergyForDept >= 0xFB00){
+        write("%f-EvEVTimeToEnergyForDept Reserved 0x%X", timenow()/100000.0, (EvEVTimeToEnergyForDept));
+      } else {
+        write("%f-EvEVTimeToEnergyForDept %d min", timenow()/100000.0, (EvEVTimeToEnergyForDept));
+      }
+      break;
+    case 102:
+      EvDurMin = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvDurMin >= 0xFF00){
+        write("%f-EvDurMin Not_Available", timenow()/100000.0);
+      } else if(EvDurMin >= 0xFE00){
+        write("%f-EvDurMin Error", timenow()/100000.0);
+      } else if(EvDurMin >= 0xFB00){
+        write("%f-EvDurMin Reserved 0x%X", timenow()/100000.0, (EvDurMin));
+      } else {
+        write("%f-EvDurMin %d s", timenow()/100000.0, (EvDurMin * 10));
+      }
+      EvChaDurMax = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvChaDurMax >= 0xFF00){
+        write("%f-EvChaDurMax Not_Available", timenow()/100000.0);
+      } else if(EvChaDurMax >= 0xFE00){
+        write("%f-EvChaDurMax Error", timenow()/100000.0);
+      } else if(EvChaDurMax >= 0xFB00){
+        write("%f-EvChaDurMax Reserved 0x%X", timenow()/100000.0, (EvChaDurMax));
+      } else {
+        write("%f-EvChaDurMax %d s", timenow()/100000.0, (EvChaDurMax * 10));
+      }
+      EvDschDurMax = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvDschDurMax >= 0xFF00){
+        write("%f-EvDschDurMax Not_Available", timenow()/100000.0);
+      } else if(EvDschDurMax >= 0xFE00){
+        write("%f-EvDschDurMax Error", timenow()/100000.0);
+      } else if(EvDschDurMax >= 0xFB00){
+        write("%f-EvDschDurMax Reserved 0x%X", timenow()/100000.0, (EvDschDurMax));
+      } else {
+        write("%f-EvDschDurMax %d s", timenow()/100000.0, (EvDschDurMax * 10));
+      }
+      break;
+    case 103:
+      EvTimeReqNum = ((byte)ev_buffer[0]);
+      if(EvTimeReqNum >= 0xFF){
+        write("%f-EvTimeReqNum Not_Available", timenow()/100000.0);
+      } else if(EvTimeReqNum >= 0xFE){
+        write("%f-EvTimeReqNum Error", timenow()/100000.0);
+      } else if(EvTimeReqNum >= 0xFB){
+        write("%f-EvTimeReqNum Reserved 0x%X", timenow()/100000.0, (EvTimeReqNum));
+      } else {
+        write("%f-EvTimeReqNum 0x%02X ", timenow()/100000.0, (EvTimeReqNum));
+      }
+      EvEVTimeToRange = ((word)ev_buffer[2] << 8) | ((word)ev_buffer[1]);
+      if(EvEVTimeToRange >= 0xFF00){
+        write("%f-EvEVTimeToRange Not_Available", timenow()/100000.0);
+      } else if(EvEVTimeToRange >= 0xFE00){
+        write("%f-EvEVTimeToRange Error", timenow()/100000.0);
+      } else if(EvEVTimeToRange >= 0xFB00){
+        write("%f-EvEVTimeToRange Reserved 0x%X", timenow()/100000.0, (EvEVTimeToRange));
+      } else {
+        write("%f-EvEVTimeToRange %d min", timenow()/100000.0, (EvEVTimeToRange));
+      }
+      EvEVTimeToEnergy = ((word)ev_buffer[4] << 8) | ((word)ev_buffer[3]);
+      if(EvEVTimeToEnergy >= 0xFF00){
+        write("%f-EvEVTimeToEnergy Not_Available", timenow()/100000.0);
+      } else if(EvEVTimeToEnergy >= 0xFE00){
+        write("%f-EvEVTimeToEnergy Error", timenow()/100000.0);
+      } else if(EvEVTimeToEnergy >= 0xFB00){
+        write("%f-EvEVTimeToEnergy Reserved 0x%X", timenow()/100000.0, (EvEVTimeToEnergy));
+      } else {
+        write("%f-EvEVTimeToEnergy %d min", timenow()/100000.0, (EvEVTimeToEnergy));
+      }
+      break;
+    case 104:
+      EvHVESSVoltage = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvHVESSVoltage >= 0xFF00){
+        write("%f-EvHVESSVoltage Not_Available", timenow()/100000.0);
+      } else if(EvHVESSVoltage >= 0xFE00){
+        write("%f-EvHVESSVoltage Error", timenow()/100000.0);
+      } else if(EvHVESSVoltage >= 0xFB00){
+        write("%f-EvHVESSVoltage Reserved 0x%X", timenow()/100000.0, (EvHVESSVoltage));
+      } else {
+        write("%f-EvHVESSVoltage %.3lf ", timenow()/100000.0, ((double)EvHVESSVoltage * 0.050000));
+      }
+      EvHVESSCurrent = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvHVESSCurrent >= 0xFF00){
+        write("%f-EvHVESSCurrent Not_Available", timenow()/100000.0);
+      } else if(EvHVESSCurrent >= 0xFE00){
+        write("%f-EvHVESSCurrent Error", timenow()/100000.0);
+      } else if(EvHVESSCurrent >= 0xFB00){
+        write("%f-EvHVESSCurrent Reserved 0x%X", timenow()/100000.0, (EvHVESSCurrent));
+      } else {
+        write("%f-EvHVESSCurrent %.3lf ", timenow()/100000.0, ((double)EvHVESSCurrent * 0.050000) - 1600);
+      }
+      EvHVESSHealth = ((byte)ev_buffer[4]);
+      if(EvHVESSHealth >= 0xFF){
+        write("%f-EvHVESSHealth Not_Available", timenow()/100000.0);
+      } else if(EvHVESSHealth >= 0xFE){
+        write("%f-EvHVESSHealth Error", timenow()/100000.0);
+      } else if(EvHVESSHealth >= 0xFB){
+        write("%f-EvHVESSHealth Reserved 0x%X", timenow()/100000.0, (EvHVESSHealth));
+      } else {
+        write("%f-EvHVESSHealth %.3lf %%", timenow()/100000.0, ((double)EvHVESSHealth * 0.400000));
+      }
+      EvHVESSUserSOC = ((byte)ev_buffer[5]);
+      if(EvHVESSUserSOC >= 0xFF){
+        write("%f-EvHVESSUserSOC Not_Available", timenow()/100000.0);
+      } else if(EvHVESSUserSOC >= 0xFE){
+        write("%f-EvHVESSUserSOC Error", timenow()/100000.0);
+      } else if(EvHVESSUserSOC >= 0xFB){
+        write("%f-EvHVESSUserSOC Reserved 0x%X", timenow()/100000.0, (EvHVESSUserSOC));
+      } else {
+        write("%f-EvHVESSUserSOC %.3lf %%", timenow()/100000.0, ((double)EvHVESSUserSOC * 0.400000));
+      }
+      break;
+    case 105:
+      EvACActivePower = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvACActivePower >= 0xFF00){
+        write("%f-EvACActivePower Not_Available", timenow()/100000.0);
+      } else if(EvACActivePower >= 0xFE00){
+        write("%f-EvACActivePower Error", timenow()/100000.0);
+      } else if(EvACActivePower >= 0xFB00){
+        write("%f-EvACActivePower Reserved 0x%X", timenow()/100000.0, (EvACActivePower));
+      } else {
+        write("%f-EvACActivePower %d W", timenow()/100000.0, (EvACActivePower * 16) - 500);
+      }
+      EvACReactivePower = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvACReactivePower >= 0xFF00){
+        write("%f-EvACReactivePower Not_Available", timenow()/100000.0);
+      } else if(EvACReactivePower >= 0xFE00){
+        write("%f-EvACReactivePower Error", timenow()/100000.0);
+      } else if(EvACReactivePower >= 0xFB00){
+        write("%f-EvACReactivePower Reserved 0x%X", timenow()/100000.0, (EvACReactivePower));
+      } else {
+        write("%f-EvACReactivePower %d VA", timenow()/100000.0, (EvACReactivePower * 16) - 500);
+      }
+      EvACFrequency = ((byte)ev_buffer[4]);
+      if(EvACFrequency >= 0xFF){
+        write("%f-EvACFrequency Not_Available", timenow()/100000.0);
+      } else if(EvACFrequency >= 0xFE){
+        write("%f-EvACFrequency Error", timenow()/100000.0);
+      } else if(EvACFrequency >= 0xFB){
+        write("%f-EvACFrequency Reserved 0x%X", timenow()/100000.0, (EvACFrequency));
+      } else {
+        write("%f-EvACFrequency %.3lf Hz", timenow()/100000.0, ((double)EvACFrequency * 0.100000) - -42.500000);
+      }
+      break;
+    case 106:
+      EvL1NVolts = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvL1NVolts >= 0xFF00){
+        write("%f-EvL1NVolts Not_Available", timenow()/100000.0);
+      } else if(EvL1NVolts >= 0xFE00){
+        write("%f-EvL1NVolts Error", timenow()/100000.0);
+      } else if(EvL1NVolts >= 0xFB00){
+        write("%f-EvL1NVolts Reserved 0x%X", timenow()/100000.0, (EvL1NVolts));
+      } else {
+        write("%f-EvL1NVolts %.3lf Volts", timenow()/100000.0, ((double)EvL1NVolts * 0.050000));
+      }
+      EvL2NVolts = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvL2NVolts >= 0xFF00){
+        write("%f-EvL2NVolts Not_Available", timenow()/100000.0);
+      } else if(EvL2NVolts >= 0xFE00){
+        write("%f-EvL2NVolts Error", timenow()/100000.0);
+      } else if(EvL2NVolts >= 0xFB00){
+        write("%f-EvL2NVolts Reserved 0x%X", timenow()/100000.0, (EvL2NVolts));
+      } else {
+        write("%f-EvL2NVolts %.3lf Volts", timenow()/100000.0, ((double)EvL2NVolts * 0.050000));
+      }
+      EvL3NVolts = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvL3NVolts >= 0xFF00){
+        write("%f-EvL3NVolts Not_Available", timenow()/100000.0);
+      } else if(EvL3NVolts >= 0xFE00){
+        write("%f-EvL3NVolts Error", timenow()/100000.0);
+      } else if(EvL3NVolts >= 0xFB00){
+        write("%f-EvL3NVolts Reserved 0x%X", timenow()/100000.0, (EvL3NVolts));
+      } else {
+        write("%f-EvL3NVolts %.3lf Volts", timenow()/100000.0, ((double)EvL3NVolts * 0.050000));
+      }
+      break;
+    case 107:
+      EvAmbientTemp = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvAmbientTemp >= 0xFF00){
+        write("%f-EvAmbientTemp Not_Available", timenow()/100000.0);
+      } else if(EvAmbientTemp >= 0xFE00){
+        write("%f-EvAmbientTemp Error", timenow()/100000.0);
+      } else if(EvAmbientTemp >= 0xFB00){
+        write("%f-EvAmbientTemp Reserved 0x%X", timenow()/100000.0, (EvAmbientTemp));
+      } else {
+        write("%f-EvAmbientTemp %.3lf C", timenow()/100000.0, ((double)EvAmbientTemp * 0.031250) - 273);
+      }
+      EvCabinTemp = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvCabinTemp >= 0xFF00){
+        write("%f-EvCabinTemp Not_Available", timenow()/100000.0);
+      } else if(EvCabinTemp >= 0xFE00){
+        write("%f-EvCabinTemp Error", timenow()/100000.0);
+      } else if(EvCabinTemp >= 0xFB00){
+        write("%f-EvCabinTemp Reserved 0x%X", timenow()/100000.0, (EvCabinTemp));
+      } else {
+        write("%f-EvCabinTemp %.3lf C", timenow()/100000.0, ((double)EvCabinTemp * 0.031250) - 273);
+      }
+      break;
+    case 108:
+      EvHVESSCellTemp = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvHVESSCellTemp >= 0xFF00){
+        write("%f-EvHVESSCellTemp Not_Available", timenow()/100000.0);
+      } else if(EvHVESSCellTemp >= 0xFE00){
+        write("%f-EvHVESSCellTemp Error", timenow()/100000.0);
+      } else if(EvHVESSCellTemp >= 0xFB00){
+        write("%f-EvHVESSCellTemp Reserved 0x%X", timenow()/100000.0, (EvHVESSCellTemp));
+      } else {
+        write("%f-EvHVESSCellTemp %.3lf C", timenow()/100000.0, ((double)EvHVESSCellTemp * 0.031250) - 273);
+      }
+      EvMaxHVESSTemp = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvMaxHVESSTemp >= 0xFF00){
+        write("%f-EvMaxHVESSTemp Not_Available", timenow()/100000.0);
+      } else if(EvMaxHVESSTemp >= 0xFE00){
+        write("%f-EvMaxHVESSTemp Error", timenow()/100000.0);
+      } else if(EvMaxHVESSTemp >= 0xFB00){
+        write("%f-EvMaxHVESSTemp Reserved 0x%X", timenow()/100000.0, (EvMaxHVESSTemp));
+      } else {
+        write("%f-EvMaxHVESSTemp %.3lf C", timenow()/100000.0, ((double)EvMaxHVESSTemp * 0.031250) - 273);
+      }
+      EvMinHVESSTemp = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvMinHVESSTemp >= 0xFF00){
+        write("%f-EvMinHVESSTemp Not_Available", timenow()/100000.0);
+      } else if(EvMinHVESSTemp >= 0xFE00){
+        write("%f-EvMinHVESSTemp Error", timenow()/100000.0);
+      } else if(EvMinHVESSTemp >= 0xFB00){
+        write("%f-EvMinHVESSTemp Reserved 0x%X", timenow()/100000.0, (EvMinHVESSTemp));
+      } else {
+        write("%f-EvMinHVESSTemp %.3lf C", timenow()/100000.0, ((double)EvMinHVESSTemp * 0.031250) - 273);
+      }
+      EvHVESSElecTemp = ((byte)ev_buffer[6]);
+      if(EvHVESSElecTemp >= 0xFF){
+        write("%f-EvHVESSElecTemp Not_Available", timenow()/100000.0);
+      } else if(EvHVESSElecTemp >= 0xFE){
+        write("%f-EvHVESSElecTemp Error", timenow()/100000.0);
+      } else if(EvHVESSElecTemp >= 0xFB){
+        write("%f-EvHVESSElecTemp Reserved 0x%X", timenow()/100000.0, (EvHVESSElecTemp));
+      } else {
+        write("%f-EvHVESSElecTemp %d C", timenow()/100000.0, (EvHVESSElecTemp) - 40);
+      }
+      break;
+    case 109:
+      EvMaxHVESSCellVolt = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvMaxHVESSCellVolt >= 0xFF00){
+        write("%f-EvMaxHVESSCellVolt Not_Available", timenow()/100000.0);
+      } else if(EvMaxHVESSCellVolt >= 0xFE00){
+        write("%f-EvMaxHVESSCellVolt Error", timenow()/100000.0);
+      } else if(EvMaxHVESSCellVolt >= 0xFB00){
+        write("%f-EvMaxHVESSCellVolt Reserved 0x%X", timenow()/100000.0, (EvMaxHVESSCellVolt));
+      } else {
+        write("%f-EvMaxHVESSCellVolt %.3lf V", timenow()/100000.0, ((double)EvMaxHVESSCellVolt * 0.001000));
+      }
+      EvMinHVESSCellVolt = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvMinHVESSCellVolt >= 0xFF00){
+        write("%f-EvMinHVESSCellVolt Not_Available", timenow()/100000.0);
+      } else if(EvMinHVESSCellVolt >= 0xFE00){
+        write("%f-EvMinHVESSCellVolt Error", timenow()/100000.0);
+      } else if(EvMinHVESSCellVolt >= 0xFB00){
+        write("%f-EvMinHVESSCellVolt Reserved 0x%X", timenow()/100000.0, (EvMinHVESSCellVolt));
+      } else {
+        write("%f-EvMinHVESSCellVolt %.3lf V", timenow()/100000.0, ((double)EvMinHVESSCellVolt * 0.001000));
+      }
+      EvNumHVESSCellBalancing = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvNumHVESSCellBalancing >= 0xFF00){
+        write("%f-EvNumHVESSCellBalancing Not_Available", timenow()/100000.0);
+      } else if(EvNumHVESSCellBalancing >= 0xFE00){
+        write("%f-EvNumHVESSCellBalancing Error", timenow()/100000.0);
+      } else if(EvNumHVESSCellBalancing >= 0xFB00){
+        write("%f-EvNumHVESSCellBalancing Reserved 0x%X", timenow()/100000.0, (EvNumHVESSCellBalancing));
+      } else {
+        write("%f-EvNumHVESSCellBalancing %d ", timenow()/100000.0, (EvNumHVESSCellBalancing));
+      }
+      EvStatusCellVoltDiff = ((ev_buffer[6] >> 0) & 0x0F);
+      switch(EvStatusCellVoltDiff)  {
+        case 0x00:
+          write("%f-EvStatusCellVoltDiff within_acceptable_limits", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x01:
+          write("%f-EvStatusCellVoltDiff can_be_corrected", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x02:
+          write("%f-EvStatusCellVoltDiff maintenance_can_restore_performance", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x03:
+          write("%f-EvStatusCellVoltDiff maintenance_cannot_restore_performance", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x04:
+          write("%f-EvStatusCellVoltDiff performance_restoration_unknown", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x0E:
+          write("%f-EvStatusCellVoltDiff Error", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x0F:
+          write("%f-EvStatusCellVoltDiff Not_Available", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        default:
+          write("%f-EvStatusCellVoltDiff Reserved 0x%02X ", timenow()/100000.0, EvStatusCellVoltDiff);
+      }
+      EvStatusCellBal = ((ev_buffer[6] >> 4) & 0x03);
+      switch(EvStatusCellBal)  {
+        case 0x00:
+          write("%f-EvStatusCellBal balanced", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        case 0x01:
+          write("%f-EvStatusCellBal unbalanced", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        case 0x02:
+          write("%f-EvStatusCellBal Error", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        case 0x03:
+          write("%f-EvStatusCellBal Not_Available", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        default:
+          write("%f-EvStatusCellBal Reserved 0x%02X ", timenow()/100000.0, EvStatusCellBal);
+      }
+      EvActiveCellBal = ((ev_buffer[6] >> 6) & 0x03);
+      switch(EvActiveCellBal)  {
+        case 0x00:
+          write("%f-EvActiveCellBal not_active", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        case 0x01:
+          write("%f-EvActiveCellBal active", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        case 0x02:
+          write("%f-EvActiveCellBal Error", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        case 0x03:
+          write("%f-EvActiveCellBal Not_Available", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        default:
+          write("%f-EvActiveCellBal Reserved 0x%02X ", timenow()/100000.0, EvActiveCellBal);
+      }
+      break;
+    case 110:
+      EvChargerTemp = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvChargerTemp >= 0xFF00){
+        write("%f-EvChargerTemp Not_Available", timenow()/100000.0);
+      } else if(EvChargerTemp >= 0xFE00){
+        write("%f-EvChargerTemp Error", timenow()/100000.0);
+      } else if(EvChargerTemp >= 0xFB00){
+        write("%f-EvChargerTemp Reserved 0x%X", timenow()/100000.0, (EvChargerTemp));
+      } else {
+        write("%f-EvChargerTemp %.3lf C", timenow()/100000.0, ((double)EvChargerTemp * 0.031250) - 273);
+      }
+      EvMaxChargerTemp = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvMaxChargerTemp >= 0xFF00){
+        write("%f-EvMaxChargerTemp Not_Available", timenow()/100000.0);
+      } else if(EvMaxChargerTemp >= 0xFE00){
+        write("%f-EvMaxChargerTemp Error", timenow()/100000.0);
+      } else if(EvMaxChargerTemp >= 0xFB00){
+        write("%f-EvMaxChargerTemp Reserved 0x%X", timenow()/100000.0, (EvMaxChargerTemp));
+      } else {
+        write("%f-EvMaxChargerTemp %.3lf C", timenow()/100000.0, ((double)EvMaxChargerTemp * 0.031250) - 273);
+      }
+      EvInletTemp = ((byte)ev_buffer[4]);
+      if(EvInletTemp >= 0xFF){
+        write("%f-EvInletTemp Not_Available", timenow()/100000.0);
+      } else if(EvInletTemp >= 0xFE){
+        write("%f-EvInletTemp Error", timenow()/100000.0);
+      } else if(EvInletTemp >= 0xFB){
+        write("%f-EvInletTemp Reserved 0x%X", timenow()/100000.0, (EvInletTemp));
+      } else {
+        write("%f-EvInletTemp %d C", timenow()/100000.0, (EvInletTemp) - 40);
+      }
+      EvHVESSTemp = ((byte)ev_buffer[5]);
+      if(EvHVESSTemp >= 0xFF){
+        write("%f-EvHVESSTemp Not_Available", timenow()/100000.0);
+      } else if(EvHVESSTemp >= 0xFE){
+        write("%f-EvHVESSTemp Error", timenow()/100000.0);
+      } else if(EvHVESSTemp >= 0xFB){
+        write("%f-EvHVESSTemp Reserved 0x%X", timenow()/100000.0, (EvHVESSTemp));
+      } else {
+        write("%f-EvHVESSTemp %d C", timenow()/100000.0, (EvHVESSTemp) - 40);
+      }
+      break;
+    case 251:
+      EvCrc32 = ((dword)ev_buffer[3] << 24) | ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+        write("%f-EvCrc32 0x%08X", timenow()/100000.0, (EvCrc32));
+      break;
+  }
+  ///<ev_id_parse
+
+  if ((pgs_read == pgs_to_read) && (ev_id_page_number == last_pg))  {
+    write("%f---VIN:%s, EMAID:%s, Drv:%s, Veh:%s", timenow()/100000.0, EvVIN, EvEMAID, EvDriverID, EvVehicleName);
+    write("%f---EVCCID:%s", timenow()/100000.0, EvEVCCID);
+    write("%f---Manu:%s, Firmware:%s", timenow()/100000.0, EvManufacturer, EvFirmwareRevision);
+  }
+}
+
+void se_data_parse()  {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+  long temp;
+
+  pgs_read++;
+
+  writeTextColor(1,0xFF,0x9A,0x00);
+
+  ///>se_data_parse
+  switch(se_id_page_number) {
+    case 0:
+      pgs_to_read = se_buffer[1];
+      se_id_status = (enum ID_STATUS_TYPE)se_buffer[0];
+      last_pg = se_buffer[3];
+      pgs_read = 1;
+      first_pg = se_buffer[2];
+      se_crc = (se_buffer[4] >> 4) & 0x0F;
+      ev_crc = (se_buffer[4]) & 0x0F;
+      write("%f-SE Status %s", timenow()/100000.0, Id_Status_strings[se_id_status]);
+      write("%f-SE Pages: First %d; Last %d; Number %d", timenow()/100000.0, first_pg, last_pg, pgs_to_read);
+      if (se_crc > 1) {
+        se_crc = 2;
+        }
+        if (ev_crc > 1) {
+          if (ev_crc < 0xE)  {
+            ev_crc = 4; //Reserved
+          } else  {
+            ev_crc = ev_crc - 12;
+          }
+        }
+      write("%f-SE CRC Stat: %s; EV CRC Stat: %s", timenow()/100000.0, xmit_crc_status[se_crc], rcv_crc_status[ev_crc]);
+      break;
+    case 97:
+      SeAmbientTemp = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SeAmbientTemp >= 0xFF00){
+        write("%f-SeAmbientTemp Not_Available", timenow()/100000.0);
+      } else if(SeAmbientTemp >= 0xFE00){
+        write("%f-SeAmbientTemp Error", timenow()/100000.0);
+      } else if(SeAmbientTemp >= 0xFB00){
+        write("%f-SeAmbientTemp Reserved 0x%X", timenow()/100000.0, (SeAmbientTemp));
+      } else {
+        write("%f-SeAmbientTemp %.3lf C", timenow()/100000.0, ((double)SeAmbientTemp * 0.031250) - 273);
+      }
+      SeConnectorTemp = ((byte)se_buffer[2]);
+      if(SeConnectorTemp >= 0xFF){
+        write("%f-SeConnectorTemp Not_Available", timenow()/100000.0);
+      } else if(SeConnectorTemp >= 0xFE){
+        write("%f-SeConnectorTemp Error", timenow()/100000.0);
+      } else if(SeConnectorTemp >= 0xFB){
+        write("%f-SeConnectorTemp Reserved 0x%X", timenow()/100000.0, (SeConnectorTemp));
+      } else {
+        write("%f-SeConnectorTemp %d C", timenow()/100000.0, (SeConnectorTemp) - 40);
+      }
+      SeOutletTemp = ((byte)se_buffer[3]);
+      if(SeOutletTemp >= 0xFF){
+        write("%f-SeOutletTemp Not_Available", timenow()/100000.0);
+      } else if(SeOutletTemp >= 0xFE){
+        write("%f-SeOutletTemp Error", timenow()/100000.0);
+      } else if(SeOutletTemp >= 0xFB){
+        write("%f-SeOutletTemp Reserved 0x%X", timenow()/100000.0, (SeOutletTemp));
+      } else {
+        write("%f-SeOutletTemp %d C", timenow()/100000.0, (SeOutletTemp) - 40);
+      }
+      SeEvStatusOutletOverride = ((se_buffer[4] >> 0) & 0x03);
+      switch(SeEvStatusOutletOverride)  {
+        case 0x00:
+          write("%f-SeEvStatusOutletOverride not_active", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        case 0x01:
+          write("%f-SeEvStatusOutletOverride active", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        case 0x02:
+          write("%f-SeEvStatusOutletOverride Error", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        case 0x03:
+          write("%f-SeEvStatusOutletOverride Not_available", timenow()/100000.0, (SeEvStatusOutletOverride));
+          break;
+        default:
+          write("%f-SeEvStatusOutletOverride Reserved 0x%02X ", timenow()/100000.0, SeEvStatusOutletOverride);
+      }
+      SeEvStatusOutletLock = ((se_buffer[4] >> 2) & 0x07);
+      switch(SeEvStatusOutletLock)  {
+        case 0x00:
+          write("%f-SeEvStatusOutletLock Unlocked", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x01:
+          write("%f-SeEvStatusOutletLock Locked", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x02:
+          write("%f-SeEvStatusOutletLock In_transition", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x05:
+          write("%f-SeEvStatusOutletLock No_lock", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x06:
+          write("%f-SeEvStatusOutletLock Error", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        case 0x07:
+          write("%f-SeEvStatusOutletLock Not_available", timenow()/100000.0, (SeEvStatusOutletLock));
+          break;
+        default:
+          write("%f-SeEvStatusOutletLock Reserved 0x%02X ", timenow()/100000.0, SeEvStatusOutletLock);
+      }
+      break;
+    case 98:
+      SeRmtMgmtStatus = ((byte)se_buffer[0]);
+      switch(SeRmtMgmtStatus)  {
+        case 0x00:
+          write("%f-SeRmtMgmtStatus connected", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x01:
+          write("%f-SeRmtMgmtStatus connecting", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x02:
+          write("%f-SeRmtMgmtStatus not_connected", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x03:
+          write("%f-SeRmtMgmtStatus fallback", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0x04:
+          write("%f-SeRmtMgmtStatus local", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0xFE:
+          write("%f-SeRmtMgmtStatus error", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        case 0xFF:
+          write("%f-SeRmtMgmtStatus none_or_status_unknown", timenow()/100000.0, (SeRmtMgmtStatus));
+          break;
+        default:
+          write("%f-SeRmtMgmtStatus Reserved 0x%02X ", timenow()/100000.0, SeRmtMgmtStatus);
+      }
+      SeEvTripStatus = ((byte)se_buffer[1]);
+      switch(SeEvTripStatus)  {
+        case 0x00:
+          write("%f-SeEvTripStatus not_present", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0x01:
+          write("%f-SeEvTripStatus following", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0x02:
+          write("%f-SeEvTripStatus cannot_be_met", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0xFE:
+          write("%f-SeEvTripStatus invalid", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        case 0xFF:
+          write("%f-SeEvTripStatus not_supported", timenow()/100000.0, (SeEvTripStatus));
+          break;
+        default:
+          write("%f-SeEvTripStatus Reserved 0x%02X ", timenow()/100000.0, SeEvTripStatus);
+      }
+      SeSeTripStatus = ((byte)se_buffer[2]);
+      switch(SeSeTripStatus)  {
+        case 0x00:
+          write("%f-SeSeTripStatus not_present", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0x01:
+          write("%f-SeSeTripStatus following", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0x02:
+          write("%f-SeSeTripStatus cannot_be_met", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0x03:
+          write("%f-SeSeTripStatus EV_precedence", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0xFE:
+          write("%f-SeSeTripStatus cannot_retrieve", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        case 0xFF:
+          write("%f-SeSeTripStatus not_supported", timenow()/100000.0, (SeSeTripStatus));
+          break;
+        default:
+          write("%f-SeSeTripStatus Reserved 0x%02X ", timenow()/100000.0, SeSeTripStatus);
+      }
+      SeExptTripPerct = ((byte)se_buffer[3]);
+      if(SeExptTripPerct >= 0xFF){
+        write("%f-SeExptTripPerct Not_Available", timenow()/100000.0);
+      } else if(SeExptTripPerct >= 0xFE){
+        write("%f-SeExptTripPerct Error", timenow()/100000.0);
+      } else if(SeExptTripPerct >= 0xFB){
+        write("%f-SeExptTripPerct Reserved 0x%X", timenow()/100000.0, (SeExptTripPerct));
+      } else {
+        write("%f-SeExptTripPerct %.3lf %%", timenow()/100000.0, ((double)SeExptTripPerct * 0.400000));
+      }
+      break;
+    case 99:
+      SeTimeReqNum = ((byte)se_buffer[0]);
+      if(SeTimeReqNum >= 0xFF){
+        write("%f-SeTimeReqNum Not_Available", timenow()/100000.0);
+      } else if(SeTimeReqNum >= 0xFE){
+        write("%f-SeTimeReqNum Error", timenow()/100000.0);
+      } else if(SeTimeReqNum >= 0xFB){
+        write("%f-SeTimeReqNum Reserved 0x%X", timenow()/100000.0, (SeTimeReqNum));
+      } else {
+        write("%f-SeTimeReqNum %d count", timenow()/100000.0, (SeTimeReqNum));
+      }
+      SeHVESSRangeCalc = ((word)se_buffer[2] << 8) | ((word)se_buffer[1]);
+      if(SeHVESSRangeCalc >= 0xFF00){
+        write("%f-SeHVESSRangeCalc Not_Available", timenow()/100000.0);
+      } else if(SeHVESSRangeCalc >= 0xFE00){
+        write("%f-SeHVESSRangeCalc Error", timenow()/100000.0);
+      } else if(SeHVESSRangeCalc >= 0xFB00){
+        write("%f-SeHVESSRangeCalc Reserved 0x%X", timenow()/100000.0, (SeHVESSRangeCalc));
+      } else {
+        write("%f-SeHVESSRangeCalc %d km", timenow()/100000.0, (SeHVESSRangeCalc));
+      }
+      SeHVESSEnergyCalc = ((dword)se_buffer[5] << 16) | ((dword)se_buffer[4] << 8) | ((dword)se_buffer[3]);
+      if(SeHVESSEnergyCalc >= 0xFF0000){
+        write("%f-SeHVESSEnergyCalc Not_Available", timenow()/100000.0);
+      } else if(SeHVESSEnergyCalc >= 0xFE0000){
+        write("%f-SeHVESSEnergyCalc Error", timenow()/100000.0);
+      } else if(SeHVESSEnergyCalc >= 0xFB0000){
+        write("%f-SeHVESSEnergyCalc Reserved 0x%X", timenow()/100000.0, (SeHVESSEnergyCalc));
+      } else {
+        write("%f-SeHVESSEnergyCalc %.3lf kWh", timenow()/100000.0, ((double)SeHVESSEnergyCalc * 0.001000));
+      }
+      break;
+    case 251:
+      SeCrc32 = ((dword)se_buffer[3] << 24) | ((dword)se_buffer[2] << 16) | ((dword)se_buffer[1] << 8) | ((dword)se_buffer[0]);
+        write("%f-SeCrc32 0x%08X", timenow()/100000.0, (SeCrc32));
+      break;
+  }
+  ///<se_data_parse
+}
+
+void ev_data_parse()  {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+  long temp;
+
+  pgs_read++;
+
+  writeTextColor(1,0x00,0xA2,0xFF);
+
+  ///>ev_data_parse
+  switch(ev_id_page_number) {
+    case 0:
+      pgs_to_read = ev_buffer[1];
+      ev_id_status = (enum ID_STATUS_TYPE)ev_buffer[0];
+      last_pg = ev_buffer[3];
+      pgs_read = 1;
+      first_pg = ev_buffer[2];
+      ev_crc = (ev_buffer[4] >> 4) & 0x0F;
+      se_crc = (ev_buffer[4]) & 0x0F;
+      write("%f-EV Status %s", timenow()/100000.0, Id_Status_strings[ev_id_status]);
+      write("%f-EV Pages: First %d; Last %d; Number %d", timenow()/100000.0, first_pg, last_pg, pgs_to_read);
+      if (ev_crc > 1) {
+        ev_crc = 2;
+        }
+        if (se_crc > 1) {
+          if (se_crc < 0xE)  {
+            se_crc = 4; //Reserved
+          } else  {
+            se_crc = se_crc - 12;
+          }
+        }
+      write("%f-EV CRC Stat: %s; SE CRC Stat: %s", timenow()/100000.0, xmit_crc_status[ev_crc], rcv_crc_status[se_crc]);
+      break;
+    case 97:
+      EvOdometer = ((dword)ev_buffer[3] << 24) | ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+      if(EvOdometer >= 0xFF000000){
+        write("%f-EvOdometer Not_Available", timenow()/100000.0);
+      } else if(EvOdometer >= 0xFE000000){
+        write("%f-EvOdometer Error", timenow()/100000.0);
+      } else if(EvOdometer >= 0xFB000000){
+        write("%f-EvOdometer Reserved 0x%X", timenow()/100000.0, (EvOdometer));
+      } else {
+        write("%f-EvOdometer %.3lf km", timenow()/100000.0, ((double)EvOdometer * 0.125000));
+      }
+      EvStatusInletLatch = ((ev_buffer[4] >> 0) & 0x03);
+      switch(EvStatusInletLatch)  {
+        case 0x00:
+          write("%f-EvStatusInletLatch released", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        case 0x01:
+          write("%f-EvStatusInletLatch engaged", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        case 0x02:
+          write("%f-EvStatusInletLatch Error", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        case 0x03:
+          write("%f-EvStatusInletLatch Not_available", timenow()/100000.0, (EvStatusInletLatch));
+          break;
+        default:
+          write("%f-EvStatusInletLatch Reserved 0x%02X ", timenow()/100000.0, EvStatusInletLatch);
+      }
+      EvStatusInletOverride = ((ev_buffer[4] >> 2) & 0x03);
+      switch(EvStatusInletOverride)  {
+        case 0x00:
+          write("%f-EvStatusInletOverride not_active", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        case 0x01:
+          write("%f-EvStatusInletOverride active", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        case 0x02:
+          write("%f-EvStatusInletOverride Error", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        case 0x03:
+          write("%f-EvStatusInletOverride Not_available", timenow()/100000.0, (EvStatusInletOverride));
+          break;
+        default:
+          write("%f-EvStatusInletOverride Reserved 0x%02X ", timenow()/100000.0, EvStatusInletOverride);
+      }
+      EvStatusInletLock = ((ev_buffer[4] >> 4) & 0x07);
+      switch(EvStatusInletLock)  {
+        case 0x00:
+          write("%f-EvStatusInletLock Unlocked", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x01:
+          write("%f-EvStatusInletLock Locked", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x02:
+          write("%f-EvStatusInletLock In_transition", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x05:
+          write("%f-EvStatusInletLock No_lock", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x06:
+          write("%f-EvStatusInletLock Error", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        case 0x07:
+          write("%f-EvStatusInletLock Not_available", timenow()/100000.0, (EvStatusInletLock));
+          break;
+        default:
+          write("%f-EvStatusInletLock Reserved 0x%02X ", timenow()/100000.0, EvStatusInletLock);
+      }
+      break;
+    case 98:
+      EvNumberJ2012Dtcs = ((byte)ev_buffer[0]);
+      if(EvNumberJ2012Dtcs >= 0xFF){
+        write("%f-EvNumberJ2012Dtcs Not_Available", timenow()/100000.0);
+      } else if(EvNumberJ2012Dtcs >= 0xFE){
+        write("%f-EvNumberJ2012Dtcs Error", timenow()/100000.0);
+      } else if(EvNumberJ2012Dtcs >= 0xFB){
+        write("%f-EvNumberJ2012Dtcs Reserved 0x%X", timenow()/100000.0, (EvNumberJ2012Dtcs));
+      } else {
+        write("%f-EvNumberJ2012Dtcs %d count", timenow()/100000.0, (EvNumberJ2012Dtcs));
+      }
+      copy_page(ev_buffer, EvJ2012Dtc, 1, 0, 5, true);
+      EvJ2012DtcStatus = ((ev_buffer[6] >> 0) & 0x01);
+      switch(EvJ2012DtcStatus)  {
+        case 0x00:
+          write("%f-EvJ2012DtcStatus previously_active", timenow()/100000.0, (EvJ2012DtcStatus));
+          break;
+        case 0x01:
+          write("%f-EvJ2012DtcStatus active", timenow()/100000.0, (EvJ2012DtcStatus));
+          break;
+        default:
+          write("%f-EvJ2012DtcStatus Reserved %d ", timenow()/100000.0, EvJ2012DtcStatus);
+      }
+      EvJ2012DtcCount = ((ev_buffer[6] >> 1) & 0x7F);
+      if(EvJ2012DtcCount >= 0x7F){
+        write("%f-EvJ2012DtcCount Not_Available", timenow()/100000.0);
+      } else if(EvJ2012DtcCount >= 0x7E){
+        write("%f-EvJ2012DtcCount Error", timenow()/100000.0);
+      } else {
+        write("%f-EvJ2012DtcCount %d count", timenow()/100000.0, (EvJ2012DtcCount));
+      }
+      break;
+    case 99:
+      EvHVESSDishargeCapacity = ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+      if(EvHVESSDishargeCapacity >= 0xFF0000){
+        write("%f-EvHVESSDishargeCapacity Not_Available", timenow()/100000.0);
+      } else if(EvHVESSDishargeCapacity >= 0xFE0000){
+        write("%f-EvHVESSDishargeCapacity Error", timenow()/100000.0);
+      } else if(EvHVESSDishargeCapacity >= 0xFB0000){
+        write("%f-EvHVESSDishargeCapacity Reserved 0x%X", timenow()/100000.0, (EvHVESSDishargeCapacity));
+      } else {
+        write("%f-EvHVESSDishargeCapacity %.3lf kWh", timenow()/100000.0, ((double)EvHVESSDishargeCapacity * 0.001000));
+      }
+      EvHVESSChargeCapacity = ((dword)ev_buffer[5] << 16) | ((dword)ev_buffer[4] << 8) | ((dword)ev_buffer[3]);
+      if(EvHVESSChargeCapacity >= 0xFF0000){
+        write("%f-EvHVESSChargeCapacity Not_Available", timenow()/100000.0);
+      } else if(EvHVESSChargeCapacity >= 0xFE0000){
+        write("%f-EvHVESSChargeCapacity Error", timenow()/100000.0);
+      } else if(EvHVESSChargeCapacity >= 0xFB0000){
+        write("%f-EvHVESSChargeCapacity Reserved 0x%X", timenow()/100000.0, (EvHVESSChargeCapacity));
+      } else {
+        write("%f-EvHVESSChargeCapacity %.3lf kWh", timenow()/100000.0, ((double)EvHVESSChargeCapacity * 0.001000));
+      }
+      break;
+    case 100:
+      EvEnergyForDeparture = ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+      if(EvEnergyForDeparture >= 0xFF0000){
+        write("%f-EvEnergyForDeparture Not_Available", timenow()/100000.0);
+      } else if(EvEnergyForDeparture >= 0xFE0000){
+        write("%f-EvEnergyForDeparture Error", timenow()/100000.0);
+      } else if(EvEnergyForDeparture >= 0xFB0000){
+        write("%f-EvEnergyForDeparture Reserved 0x%X", timenow()/100000.0, (EvEnergyForDeparture));
+      } else {
+        write("%f-EvEnergyForDeparture %.3lf kWh", timenow()/100000.0, ((double)EvEnergyForDeparture * 0.001000));
+      }
+      EvTimeToDeparture = ((word)ev_buffer[4] << 8) | ((word)ev_buffer[3]);
+      if(EvTimeToDeparture >= 0xFF00){
+        write("%f-EvTimeToDeparture Not_Available", timenow()/100000.0);
+      } else if(EvTimeToDeparture >= 0xFE00){
+        write("%f-EvTimeToDeparture Error", timenow()/100000.0);
+      } else if(EvTimeToDeparture >= 0xFB00){
+        write("%f-EvTimeToDeparture Reserved 0x%X", timenow()/100000.0, (EvTimeToDeparture));
+      } else {
+        write("%f-EvTimeToDeparture %d min", timenow()/100000.0, (EvTimeToDeparture));
+      }
+      break;
+    case 101:
+      EvHVESSRange = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvHVESSRange >= 0xFF00){
+        write("%f-EvHVESSRange Not_Available", timenow()/100000.0);
+      } else if(EvHVESSRange >= 0xFE00){
+        write("%f-EvHVESSRange Error", timenow()/100000.0);
+      } else if(EvHVESSRange >= 0xFB00){
+        write("%f-EvHVESSRange Reserved 0x%X", timenow()/100000.0, (EvHVESSRange));
+      } else {
+        write("%f-EvHVESSRange %d km", timenow()/100000.0, (EvHVESSRange));
+      }
+      EvFuelRange = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvFuelRange >= 0xFF00){
+        write("%f-EvFuelRange Not_Available", timenow()/100000.0);
+      } else if(EvFuelRange >= 0xFE00){
+        write("%f-EvFuelRange Error", timenow()/100000.0);
+      } else if(EvFuelRange >= 0xFB00){
+        write("%f-EvFuelRange Reserved 0x%X", timenow()/100000.0, (EvFuelRange));
+      } else {
+        write("%f-EvFuelRange %d km", timenow()/100000.0, (EvFuelRange));
+      }
+      EvEVTimeToEnergyForDept = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvEVTimeToEnergyForDept >= 0xFF00){
+        write("%f-EvEVTimeToEnergyForDept Not_Available", timenow()/100000.0);
+      } else if(EvEVTimeToEnergyForDept >= 0xFE00){
+        write("%f-EvEVTimeToEnergyForDept Error", timenow()/100000.0);
+      } else if(EvEVTimeToEnergyForDept >= 0xFB00){
+        write("%f-EvEVTimeToEnergyForDept Reserved 0x%X", timenow()/100000.0, (EvEVTimeToEnergyForDept));
+      } else {
+        write("%f-EvEVTimeToEnergyForDept %d min", timenow()/100000.0, (EvEVTimeToEnergyForDept));
+      }
+      break;
+    case 102:
+      EvDurMin = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvDurMin >= 0xFF00){
+        write("%f-EvDurMin Not_Available", timenow()/100000.0);
+      } else if(EvDurMin >= 0xFE00){
+        write("%f-EvDurMin Error", timenow()/100000.0);
+      } else if(EvDurMin >= 0xFB00){
+        write("%f-EvDurMin Reserved 0x%X", timenow()/100000.0, (EvDurMin));
+      } else {
+        write("%f-EvDurMin %d s", timenow()/100000.0, (EvDurMin * 10));
+      }
+      EvChaDurMax = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvChaDurMax >= 0xFF00){
+        write("%f-EvChaDurMax Not_Available", timenow()/100000.0);
+      } else if(EvChaDurMax >= 0xFE00){
+        write("%f-EvChaDurMax Error", timenow()/100000.0);
+      } else if(EvChaDurMax >= 0xFB00){
+        write("%f-EvChaDurMax Reserved 0x%X", timenow()/100000.0, (EvChaDurMax));
+      } else {
+        write("%f-EvChaDurMax %d s", timenow()/100000.0, (EvChaDurMax * 10));
+      }
+      EvDschDurMax = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvDschDurMax >= 0xFF00){
+        write("%f-EvDschDurMax Not_Available", timenow()/100000.0);
+      } else if(EvDschDurMax >= 0xFE00){
+        write("%f-EvDschDurMax Error", timenow()/100000.0);
+      } else if(EvDschDurMax >= 0xFB00){
+        write("%f-EvDschDurMax Reserved 0x%X", timenow()/100000.0, (EvDschDurMax));
+      } else {
+        write("%f-EvDschDurMax %d s", timenow()/100000.0, (EvDschDurMax * 10));
+      }
+      break;
+    case 103:
+      EvTimeReqNum = ((byte)ev_buffer[0]);
+      if(EvTimeReqNum >= 0xFF){
+        write("%f-EvTimeReqNum Not_Available", timenow()/100000.0);
+      } else if(EvTimeReqNum >= 0xFE){
+        write("%f-EvTimeReqNum Error", timenow()/100000.0);
+      } else if(EvTimeReqNum >= 0xFB){
+        write("%f-EvTimeReqNum Reserved 0x%X", timenow()/100000.0, (EvTimeReqNum));
+      } else {
+        write("%f-EvTimeReqNum 0x%02X ", timenow()/100000.0, (EvTimeReqNum));
+      }
+      EvEVTimeToRange = ((word)ev_buffer[2] << 8) | ((word)ev_buffer[1]);
+      if(EvEVTimeToRange >= 0xFF00){
+        write("%f-EvEVTimeToRange Not_Available", timenow()/100000.0);
+      } else if(EvEVTimeToRange >= 0xFE00){
+        write("%f-EvEVTimeToRange Error", timenow()/100000.0);
+      } else if(EvEVTimeToRange >= 0xFB00){
+        write("%f-EvEVTimeToRange Reserved 0x%X", timenow()/100000.0, (EvEVTimeToRange));
+      } else {
+        write("%f-EvEVTimeToRange %d min", timenow()/100000.0, (EvEVTimeToRange));
+      }
+      EvEVTimeToEnergy = ((word)ev_buffer[4] << 8) | ((word)ev_buffer[3]);
+      if(EvEVTimeToEnergy >= 0xFF00){
+        write("%f-EvEVTimeToEnergy Not_Available", timenow()/100000.0);
+      } else if(EvEVTimeToEnergy >= 0xFE00){
+        write("%f-EvEVTimeToEnergy Error", timenow()/100000.0);
+      } else if(EvEVTimeToEnergy >= 0xFB00){
+        write("%f-EvEVTimeToEnergy Reserved 0x%X", timenow()/100000.0, (EvEVTimeToEnergy));
+      } else {
+        write("%f-EvEVTimeToEnergy %d min", timenow()/100000.0, (EvEVTimeToEnergy));
+      }
+      break;
+    case 104:
+      EvHVESSVoltage = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvHVESSVoltage >= 0xFF00){
+        write("%f-EvHVESSVoltage Not_Available", timenow()/100000.0);
+      } else if(EvHVESSVoltage >= 0xFE00){
+        write("%f-EvHVESSVoltage Error", timenow()/100000.0);
+      } else if(EvHVESSVoltage >= 0xFB00){
+        write("%f-EvHVESSVoltage Reserved 0x%X", timenow()/100000.0, (EvHVESSVoltage));
+      } else {
+        write("%f-EvHVESSVoltage %.3lf ", timenow()/100000.0, ((double)EvHVESSVoltage * 0.050000));
+      }
+      EvHVESSCurrent = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvHVESSCurrent >= 0xFF00){
+        write("%f-EvHVESSCurrent Not_Available", timenow()/100000.0);
+      } else if(EvHVESSCurrent >= 0xFE00){
+        write("%f-EvHVESSCurrent Error", timenow()/100000.0);
+      } else if(EvHVESSCurrent >= 0xFB00){
+        write("%f-EvHVESSCurrent Reserved 0x%X", timenow()/100000.0, (EvHVESSCurrent));
+      } else {
+        write("%f-EvHVESSCurrent %.3lf ", timenow()/100000.0, ((double)EvHVESSCurrent * 0.050000) - 1600);
+      }
+      EvHVESSHealth = ((byte)ev_buffer[4]);
+      if(EvHVESSHealth >= 0xFF){
+        write("%f-EvHVESSHealth Not_Available", timenow()/100000.0);
+      } else if(EvHVESSHealth >= 0xFE){
+        write("%f-EvHVESSHealth Error", timenow()/100000.0);
+      } else if(EvHVESSHealth >= 0xFB){
+        write("%f-EvHVESSHealth Reserved 0x%X", timenow()/100000.0, (EvHVESSHealth));
+      } else {
+        write("%f-EvHVESSHealth %.3lf %%", timenow()/100000.0, ((double)EvHVESSHealth * 0.400000));
+      }
+      EvHVESSUserSOC = ((byte)ev_buffer[5]);
+      if(EvHVESSUserSOC >= 0xFF){
+        write("%f-EvHVESSUserSOC Not_Available", timenow()/100000.0);
+      } else if(EvHVESSUserSOC >= 0xFE){
+        write("%f-EvHVESSUserSOC Error", timenow()/100000.0);
+      } else if(EvHVESSUserSOC >= 0xFB){
+        write("%f-EvHVESSUserSOC Reserved 0x%X", timenow()/100000.0, (EvHVESSUserSOC));
+      } else {
+        write("%f-EvHVESSUserSOC %.3lf %%", timenow()/100000.0, ((double)EvHVESSUserSOC * 0.400000));
+      }
+      break;
+    case 105:
+      EvACActivePower = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvACActivePower >= 0xFF00){
+        write("%f-EvACActivePower Not_Available", timenow()/100000.0);
+      } else if(EvACActivePower >= 0xFE00){
+        write("%f-EvACActivePower Error", timenow()/100000.0);
+      } else if(EvACActivePower >= 0xFB00){
+        write("%f-EvACActivePower Reserved 0x%X", timenow()/100000.0, (EvACActivePower));
+      } else {
+        write("%f-EvACActivePower %d W", timenow()/100000.0, (EvACActivePower * 16) - 500);
+      }
+      EvACReactivePower = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvACReactivePower >= 0xFF00){
+        write("%f-EvACReactivePower Not_Available", timenow()/100000.0);
+      } else if(EvACReactivePower >= 0xFE00){
+        write("%f-EvACReactivePower Error", timenow()/100000.0);
+      } else if(EvACReactivePower >= 0xFB00){
+        write("%f-EvACReactivePower Reserved 0x%X", timenow()/100000.0, (EvACReactivePower));
+      } else {
+        write("%f-EvACReactivePower %d VA", timenow()/100000.0, (EvACReactivePower * 16) - 500);
+      }
+      EvACFrequency = ((byte)ev_buffer[4]);
+      if(EvACFrequency >= 0xFF){
+        write("%f-EvACFrequency Not_Available", timenow()/100000.0);
+      } else if(EvACFrequency >= 0xFE){
+        write("%f-EvACFrequency Error", timenow()/100000.0);
+      } else if(EvACFrequency >= 0xFB){
+        write("%f-EvACFrequency Reserved 0x%X", timenow()/100000.0, (EvACFrequency));
+      } else {
+        write("%f-EvACFrequency %.3lf Hz", timenow()/100000.0, ((double)EvACFrequency * 0.100000) - -42.500000);
+      }
+      break;
+    case 106:
+      EvL1NVolts = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvL1NVolts >= 0xFF00){
+        write("%f-EvL1NVolts Not_Available", timenow()/100000.0);
+      } else if(EvL1NVolts >= 0xFE00){
+        write("%f-EvL1NVolts Error", timenow()/100000.0);
+      } else if(EvL1NVolts >= 0xFB00){
+        write("%f-EvL1NVolts Reserved 0x%X", timenow()/100000.0, (EvL1NVolts));
+      } else {
+        write("%f-EvL1NVolts %.3lf Volts", timenow()/100000.0, ((double)EvL1NVolts * 0.050000));
+      }
+      EvL2NVolts = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvL2NVolts >= 0xFF00){
+        write("%f-EvL2NVolts Not_Available", timenow()/100000.0);
+      } else if(EvL2NVolts >= 0xFE00){
+        write("%f-EvL2NVolts Error", timenow()/100000.0);
+      } else if(EvL2NVolts >= 0xFB00){
+        write("%f-EvL2NVolts Reserved 0x%X", timenow()/100000.0, (EvL2NVolts));
+      } else {
+        write("%f-EvL2NVolts %.3lf Volts", timenow()/100000.0, ((double)EvL2NVolts * 0.050000));
+      }
+      EvL3NVolts = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvL3NVolts >= 0xFF00){
+        write("%f-EvL3NVolts Not_Available", timenow()/100000.0);
+      } else if(EvL3NVolts >= 0xFE00){
+        write("%f-EvL3NVolts Error", timenow()/100000.0);
+      } else if(EvL3NVolts >= 0xFB00){
+        write("%f-EvL3NVolts Reserved 0x%X", timenow()/100000.0, (EvL3NVolts));
+      } else {
+        write("%f-EvL3NVolts %.3lf Volts", timenow()/100000.0, ((double)EvL3NVolts * 0.050000));
+      }
+      break;
+    case 107:
+      EvAmbientTemp = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvAmbientTemp >= 0xFF00){
+        write("%f-EvAmbientTemp Not_Available", timenow()/100000.0);
+      } else if(EvAmbientTemp >= 0xFE00){
+        write("%f-EvAmbientTemp Error", timenow()/100000.0);
+      } else if(EvAmbientTemp >= 0xFB00){
+        write("%f-EvAmbientTemp Reserved 0x%X", timenow()/100000.0, (EvAmbientTemp));
+      } else {
+        write("%f-EvAmbientTemp %.3lf C", timenow()/100000.0, ((double)EvAmbientTemp * 0.031250) - 273);
+      }
+      EvCabinTemp = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvCabinTemp >= 0xFF00){
+        write("%f-EvCabinTemp Not_Available", timenow()/100000.0);
+      } else if(EvCabinTemp >= 0xFE00){
+        write("%f-EvCabinTemp Error", timenow()/100000.0);
+      } else if(EvCabinTemp >= 0xFB00){
+        write("%f-EvCabinTemp Reserved 0x%X", timenow()/100000.0, (EvCabinTemp));
+      } else {
+        write("%f-EvCabinTemp %.3lf C", timenow()/100000.0, ((double)EvCabinTemp * 0.031250) - 273);
+      }
+      break;
+    case 108:
+      EvHVESSCellTemp = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvHVESSCellTemp >= 0xFF00){
+        write("%f-EvHVESSCellTemp Not_Available", timenow()/100000.0);
+      } else if(EvHVESSCellTemp >= 0xFE00){
+        write("%f-EvHVESSCellTemp Error", timenow()/100000.0);
+      } else if(EvHVESSCellTemp >= 0xFB00){
+        write("%f-EvHVESSCellTemp Reserved 0x%X", timenow()/100000.0, (EvHVESSCellTemp));
+      } else {
+        write("%f-EvHVESSCellTemp %.3lf C", timenow()/100000.0, ((double)EvHVESSCellTemp * 0.031250) - 273);
+      }
+      EvMaxHVESSTemp = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvMaxHVESSTemp >= 0xFF00){
+        write("%f-EvMaxHVESSTemp Not_Available", timenow()/100000.0);
+      } else if(EvMaxHVESSTemp >= 0xFE00){
+        write("%f-EvMaxHVESSTemp Error", timenow()/100000.0);
+      } else if(EvMaxHVESSTemp >= 0xFB00){
+        write("%f-EvMaxHVESSTemp Reserved 0x%X", timenow()/100000.0, (EvMaxHVESSTemp));
+      } else {
+        write("%f-EvMaxHVESSTemp %.3lf C", timenow()/100000.0, ((double)EvMaxHVESSTemp * 0.031250) - 273);
+      }
+      EvMinHVESSTemp = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvMinHVESSTemp >= 0xFF00){
+        write("%f-EvMinHVESSTemp Not_Available", timenow()/100000.0);
+      } else if(EvMinHVESSTemp >= 0xFE00){
+        write("%f-EvMinHVESSTemp Error", timenow()/100000.0);
+      } else if(EvMinHVESSTemp >= 0xFB00){
+        write("%f-EvMinHVESSTemp Reserved 0x%X", timenow()/100000.0, (EvMinHVESSTemp));
+      } else {
+        write("%f-EvMinHVESSTemp %.3lf C", timenow()/100000.0, ((double)EvMinHVESSTemp * 0.031250) - 273);
+      }
+      EvHVESSElecTemp = ((byte)ev_buffer[6]);
+      if(EvHVESSElecTemp >= 0xFF){
+        write("%f-EvHVESSElecTemp Not_Available", timenow()/100000.0);
+      } else if(EvHVESSElecTemp >= 0xFE){
+        write("%f-EvHVESSElecTemp Error", timenow()/100000.0);
+      } else if(EvHVESSElecTemp >= 0xFB){
+        write("%f-EvHVESSElecTemp Reserved 0x%X", timenow()/100000.0, (EvHVESSElecTemp));
+      } else {
+        write("%f-EvHVESSElecTemp %d C", timenow()/100000.0, (EvHVESSElecTemp) - 40);
+      }
+      break;
+    case 109:
+      EvMaxHVESSCellVolt = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvMaxHVESSCellVolt >= 0xFF00){
+        write("%f-EvMaxHVESSCellVolt Not_Available", timenow()/100000.0);
+      } else if(EvMaxHVESSCellVolt >= 0xFE00){
+        write("%f-EvMaxHVESSCellVolt Error", timenow()/100000.0);
+      } else if(EvMaxHVESSCellVolt >= 0xFB00){
+        write("%f-EvMaxHVESSCellVolt Reserved 0x%X", timenow()/100000.0, (EvMaxHVESSCellVolt));
+      } else {
+        write("%f-EvMaxHVESSCellVolt %.3lf V", timenow()/100000.0, ((double)EvMaxHVESSCellVolt * 0.001000));
+      }
+      EvMinHVESSCellVolt = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvMinHVESSCellVolt >= 0xFF00){
+        write("%f-EvMinHVESSCellVolt Not_Available", timenow()/100000.0);
+      } else if(EvMinHVESSCellVolt >= 0xFE00){
+        write("%f-EvMinHVESSCellVolt Error", timenow()/100000.0);
+      } else if(EvMinHVESSCellVolt >= 0xFB00){
+        write("%f-EvMinHVESSCellVolt Reserved 0x%X", timenow()/100000.0, (EvMinHVESSCellVolt));
+      } else {
+        write("%f-EvMinHVESSCellVolt %.3lf V", timenow()/100000.0, ((double)EvMinHVESSCellVolt * 0.001000));
+      }
+      EvNumHVESSCellBalancing = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvNumHVESSCellBalancing >= 0xFF00){
+        write("%f-EvNumHVESSCellBalancing Not_Available", timenow()/100000.0);
+      } else if(EvNumHVESSCellBalancing >= 0xFE00){
+        write("%f-EvNumHVESSCellBalancing Error", timenow()/100000.0);
+      } else if(EvNumHVESSCellBalancing >= 0xFB00){
+        write("%f-EvNumHVESSCellBalancing Reserved 0x%X", timenow()/100000.0, (EvNumHVESSCellBalancing));
+      } else {
+        write("%f-EvNumHVESSCellBalancing %d ", timenow()/100000.0, (EvNumHVESSCellBalancing));
+      }
+      EvStatusCellVoltDiff = ((ev_buffer[6] >> 0) & 0x0F);
+      switch(EvStatusCellVoltDiff)  {
+        case 0x00:
+          write("%f-EvStatusCellVoltDiff within_acceptable_limits", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x01:
+          write("%f-EvStatusCellVoltDiff can_be_corrected", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x02:
+          write("%f-EvStatusCellVoltDiff maintenance_can_restore_performance", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x03:
+          write("%f-EvStatusCellVoltDiff maintenance_cannot_restore_performance", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x04:
+          write("%f-EvStatusCellVoltDiff performance_restoration_unknown", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x0E:
+          write("%f-EvStatusCellVoltDiff Error", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        case 0x0F:
+          write("%f-EvStatusCellVoltDiff Not_Available", timenow()/100000.0, (EvStatusCellVoltDiff));
+          break;
+        default:
+          write("%f-EvStatusCellVoltDiff Reserved 0x%02X ", timenow()/100000.0, EvStatusCellVoltDiff);
+      }
+      EvStatusCellBal = ((ev_buffer[6] >> 4) & 0x03);
+      switch(EvStatusCellBal)  {
+        case 0x00:
+          write("%f-EvStatusCellBal balanced", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        case 0x01:
+          write("%f-EvStatusCellBal unbalanced", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        case 0x02:
+          write("%f-EvStatusCellBal Error", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        case 0x03:
+          write("%f-EvStatusCellBal Not_Available", timenow()/100000.0, (EvStatusCellBal));
+          break;
+        default:
+          write("%f-EvStatusCellBal Reserved 0x%02X ", timenow()/100000.0, EvStatusCellBal);
+      }
+      EvActiveCellBal = ((ev_buffer[6] >> 6) & 0x03);
+      switch(EvActiveCellBal)  {
+        case 0x00:
+          write("%f-EvActiveCellBal not_active", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        case 0x01:
+          write("%f-EvActiveCellBal active", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        case 0x02:
+          write("%f-EvActiveCellBal Error", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        case 0x03:
+          write("%f-EvActiveCellBal Not_Available", timenow()/100000.0, (EvActiveCellBal));
+          break;
+        default:
+          write("%f-EvActiveCellBal Reserved 0x%02X ", timenow()/100000.0, EvActiveCellBal);
+      }
+      break;
+    case 110:
+      EvChargerTemp = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvChargerTemp >= 0xFF00){
+        write("%f-EvChargerTemp Not_Available", timenow()/100000.0);
+      } else if(EvChargerTemp >= 0xFE00){
+        write("%f-EvChargerTemp Error", timenow()/100000.0);
+      } else if(EvChargerTemp >= 0xFB00){
+        write("%f-EvChargerTemp Reserved 0x%X", timenow()/100000.0, (EvChargerTemp));
+      } else {
+        write("%f-EvChargerTemp %.3lf C", timenow()/100000.0, ((double)EvChargerTemp * 0.031250) - 273);
+      }
+      EvMaxChargerTemp = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvMaxChargerTemp >= 0xFF00){
+        write("%f-EvMaxChargerTemp Not_Available", timenow()/100000.0);
+      } else if(EvMaxChargerTemp >= 0xFE00){
+        write("%f-EvMaxChargerTemp Error", timenow()/100000.0);
+      } else if(EvMaxChargerTemp >= 0xFB00){
+        write("%f-EvMaxChargerTemp Reserved 0x%X", timenow()/100000.0, (EvMaxChargerTemp));
+      } else {
+        write("%f-EvMaxChargerTemp %.3lf C", timenow()/100000.0, ((double)EvMaxChargerTemp * 0.031250) - 273);
+      }
+      EvInletTemp = ((byte)ev_buffer[4]);
+      if(EvInletTemp >= 0xFF){
+        write("%f-EvInletTemp Not_Available", timenow()/100000.0);
+      } else if(EvInletTemp >= 0xFE){
+        write("%f-EvInletTemp Error", timenow()/100000.0);
+      } else if(EvInletTemp >= 0xFB){
+        write("%f-EvInletTemp Reserved 0x%X", timenow()/100000.0, (EvInletTemp));
+      } else {
+        write("%f-EvInletTemp %d C", timenow()/100000.0, (EvInletTemp) - 40);
+      }
+      EvHVESSTemp = ((byte)ev_buffer[5]);
+      if(EvHVESSTemp >= 0xFF){
+        write("%f-EvHVESSTemp Not_Available", timenow()/100000.0);
+      } else if(EvHVESSTemp >= 0xFE){
+        write("%f-EvHVESSTemp Error", timenow()/100000.0);
+      } else if(EvHVESSTemp >= 0xFB){
+        write("%f-EvHVESSTemp Reserved 0x%X", timenow()/100000.0, (EvHVESSTemp));
+      } else {
+        write("%f-EvHVESSTemp %d C", timenow()/100000.0, (EvHVESSTemp) - 40);
+      }
+      break;
+    case 251:
+      EvCrc32 = ((dword)ev_buffer[3] << 24) | ((dword)ev_buffer[2] << 16) | ((dword)ev_buffer[1] << 8) | ((dword)ev_buffer[0]);
+        write("%f-EvCrc32 0x%08X", timenow()/100000.0, (EvCrc32));
+      break;
+  }
+  ///<ev_data_parse
+}
+

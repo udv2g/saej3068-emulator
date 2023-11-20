@@ -1,0 +1,268 @@
+/*@!Encoding:1252*/
+includes
+{
+  #include "InfoCodeStrings.cin"
+}
+
+variables
+{
+  const int RCV_BUFFER_SIZE = 96;//number of elements needs to be devisable by 6.
+  const int RCV_INFOENTRY_EMPTY = 0xFF;
+  const int false = 0;
+  const int true = 1;
+
+  byte rcvd_pages[2] = {0,0};//EV = 0, SE = 1
+  byte info_codes_rcv_buff[2][RCV_BUFFER_SIZE];
+
+  enum ID_STATUS_TYPE {ID_INCOMPLETE = 0, ID_COMPLETE = 1, DATA = 2} se_id_status = ID_INCOMPLETE, ev_id_status = ID_INCOMPLETE;
+
+  char Id_Status_strings[3][20] = {"ID_INCOMPLETE", "ID_COMPLETE", "DATA" };
+  char xmit_crc_status[3][20] = {"Not Transmitted", "Transmitted", "Reserved"};
+  char rcv_crc_status[5][20] = {"Not Checked", "Matches", "Does not Match", "No Full Cycle", "Reserved"};
+
+  byte ev_buffer[7], se_buffer[7];
+  byte ev_id_page_number, se_id_page_number;
+
+  ///>Declarations
+
+  ///<Declarations
+
+}
+
+on linFrame SeInfoList
+{
+  byte rcv_page;
+  rcv_page = this.SeInfoPageNumber;
+
+  rcvd_pages[1]++;
+  if (rcv_page == 0) rcvd_pages[1] = 1;      //make sure we can resynchronize
+
+  if (!(rcv_page*6 > RCV_BUFFER_SIZE))  {    //don't overflow the buffer
+    info_codes_rcv_buff[1][rcv_page*6]   = this.SeInfoEntry1;
+    info_codes_rcv_buff[1][rcv_page*6+1] = this.SeInfoEntry2;
+    info_codes_rcv_buff[1][rcv_page*6+2] = this.SeInfoEntry3;
+    info_codes_rcv_buff[1][rcv_page*6+3] = this.SeInfoEntry4;
+    info_codes_rcv_buff[1][rcv_page*6+4] = this.SeInfoEntry5;
+    info_codes_rcv_buff[1][rcv_page*6+5] = this.SeInfoEntry6;
+  }
+
+  if ( (rcv_page + 1 == rcvd_pages[1]) && (info_codes_rcv_buff[1][rcv_page*6+5] == RCV_INFOENTRY_EMPTY) ) {
+    parse_info_codes(1);
+    rcvd_pages[1] = 0;
+  }
+
+}
+
+on linFrame EvInfoList
+{
+  byte rcv_page;
+  rcv_page = this.EvInfoPageNumber;
+
+  rcvd_pages[0]++;
+  if (rcv_page == 0) rcvd_pages[0] = 1;      //make sure we can resynchronize
+
+  if (!(rcv_page*6 > RCV_BUFFER_SIZE))  {    //don't overflow the buffer
+    info_codes_rcv_buff[0][rcv_page*6]   = this.EvInfoEntry1;
+    info_codes_rcv_buff[0][rcv_page*6+1] = this.EvInfoEntry2;
+    info_codes_rcv_buff[0][rcv_page*6+2] = this.EvInfoEntry3;
+    info_codes_rcv_buff[0][rcv_page*6+3] = this.EvInfoEntry4;
+    info_codes_rcv_buff[0][rcv_page*6+4] = this.EvInfoEntry5;
+    info_codes_rcv_buff[0][rcv_page*6+5] = this.EvInfoEntry6;
+  }
+
+  if ( (rcv_page + 1 == rcvd_pages[0]) && (info_codes_rcv_buff[0][rcv_page*6+5] == RCV_INFOENTRY_EMPTY) ) {
+    parse_info_codes(0);
+    rcvd_pages[0] = 0;
+  }
+
+}
+
+//We must handle empties between valid codes as the standard does not disallow this
+void parse_info_codes(int side)
+{
+  byte i, j;
+  byte index;
+  byte size     = RCV_BUFFER_SIZE / 6; //we know size is evenly divisible by 6
+  byte new_rcvd_codes[2][32];
+  byte current_rcvd_codes[2][32];
+  byte partial, check_bit;
+
+  for (i = 0; i < 32; i++)  {
+    new_rcvd_codes[side][i] = 0;
+  }
+
+  for (i = 0; i < size; i++) {
+    for (j = 0; j < 6; j++) {
+      index = i * 6 + j;
+      if (info_codes_rcv_buff[side][index] != RCV_INFOENTRY_EMPTY) {
+        new_rcvd_codes[side][(info_codes_rcv_buff[side][index]) >> 3] |= (1 << ((info_codes_rcv_buff[side][index]) & 0x07));
+      }
+    }
+    if (info_codes_rcv_buff[side][index] == RCV_INFOENTRY_EMPTY) break;
+  }
+
+  for (i = 0; i < 32; i++)	{
+    partial = (new_rcvd_codes[side][i] ^ current_rcvd_codes[side][i]);
+    if (partial)	{
+      for (j = 0; j < 8; j++)	{
+        check_bit = (1 << j);
+        if (partial & check_bit)	{
+          if (partial & check_bit & current_rcvd_codes[side][i])	{
+            print_info_code_change(side, ((i << 3) | j), false);
+          }	else{
+            print_info_code_change(side, ((i << 3) | j), true);
+          }
+        }
+      }
+    }
+  }
+
+  for (i = 0; i < 32; i++)  {
+    current_rcvd_codes[side][i] = new_rcvd_codes[side][i];
+  }
+}
+
+void print_info_code_change(byte side, byte code, byte op)
+{
+  char op_string[2][10] = {"clears", "sets"};
+
+  if (side) {
+    writeTextColor(1,0xFF,0x40,0x00);
+    write("%f-SE %s code# 0x%02X: %s", timenow()/100000.0, op_string[op], code, SE_Info_Codes[code]);
+  } else  {
+    writeTextColor(1,0x00,0x10,0xFF);
+    write("%f-EV %s code# 0x%02X: %s", timenow()/100000.0, op_string[op], code, EV_Info_Codes[code]);
+  }
+}
+
+on linFrame SeID
+{
+  se_id_page_number = this.SeIDPage;
+
+  se_buffer[0] = this.SeIDByteA;
+  se_buffer[1] = this.SeIDByteB;
+  se_buffer[2] = this.SeIDByteC;
+  se_buffer[3] = this.SeIDByteD;
+  se_buffer[4] = this.SeIDByteE;
+  se_buffer[5] = this.SeIDByteF;
+  se_buffer[6] = this.SeIDByteG;
+
+  if ((se_id_status == ID_INCOMPLETE) || (se_id_status == ID_COMPLETE)) {
+    se_id_parse();
+  } else{
+    se_data_parse();
+  }
+}
+
+on linFrame EvID
+{
+  ev_id_page_number = this.EvIDPage;
+
+  ev_buffer[0] = this.EvIDByteA;
+  ev_buffer[1] = this.EvIDByteB;
+  ev_buffer[2] = this.EvIDByteC;
+  ev_buffer[3] = this.EvIDByteD;
+  ev_buffer[4] = this.EvIDByteE;
+  ev_buffer[5] = this.EvIDByteF;
+  ev_buffer[6] = this.EvIDByteG;
+
+  if ((ev_id_status == ID_INCOMPLETE) || (ev_id_status == ID_COMPLETE)) {
+    ev_id_parse();
+  } else{
+    ev_data_parse();
+  }
+}
+
+void copy_page(byte source[], char destination[], byte src_offset, byte dest_offset, byte size, byte string) {
+  int i;
+
+  for(i=0; i<size; i++) {
+    destination[i+dest_offset] = source[i+src_offset];
+    if (string) {
+        if (source[i] == 0xFF)  {
+          destination[i+dest_offset] = '\0';
+        }
+  }
+  }
+}
+
+void se_id_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(1,0xFF,0x5D,0x00);
+
+  ///>se_id_parse
+
+  ///<se_id_parse
+
+  if ((pgs_read == pgs_to_read) && (se_id_page_number == last_pg))  {
+    write("%f---EVSEID:%s, Serial:%s", timenow()/100000.0, SeEVSEID, SeSerialNum);
+    write("%f---SECCID:%s", timenow()/100000.0, SeSECCID);
+    write("%f---Manu:%s, Firmware:%s", timenow()/100000.0, SeManufacturer, SeFirmwareRevision);
+    write("%f---Public:%s", timenow()/100000.0, SePublicName);
+  }
+
+}
+
+void ev_id_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(1,0x00,0x2A,0xFF);
+
+  ///>ev_id_parse
+
+  ///<ev_id_parse
+
+  if ((pgs_read == pgs_to_read) && (ev_id_page_number == last_pg))  {
+    write("%f---VIN:%s, EMAID:%s, Drv:%s, Veh:%s", timenow()/100000.0, EvVIN, EvEMAID, EvDriverID, EvVehicleName);
+    write("%f---EVCCID:%s", timenow()/100000.0, EvEVCCID);
+    write("%f---Manu:%s, Firmware:%s", timenow()/100000.0, EvManufacturer, EvFirmwareRevision);
+  }
+}
+
+void se_data_parse()  {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+  long temp;
+
+  pgs_read++;
+
+  writeTextColor(1,0xFF,0x9A,0x00);
+
+  ///>se_data_parse
+
+  ///<se_data_parse
+}
+
+void ev_data_parse()  {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+  long temp;
+
+  pgs_read++;
+
+  writeTextColor(1,0x00,0xA2,0xFF);
+
+  ///>ev_data_parse
+
+  ///<ev_data_parse
+}
+

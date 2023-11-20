@@ -31,8 +31,7 @@ struct evse_state_t {
 };
 
 /*********<EVSE**********/
-extern struct evse_state_t evse_stateA;
-#define evse_state_S(ch) evse_stateA
+extern struct evse_state_t evse_state[];
 /*********EVSE>**********/
 
 /*********<LIN**********/

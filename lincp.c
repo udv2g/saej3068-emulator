@@ -13,6 +13,7 @@
 #include <errno.h>
 #include "info_code_handler.h"
 #include "protocol_version_handler.h"
+#include "scheduler.h"
 
 generic_frame_t *all_frames;
 schedule_picker_t *schedule_picker_p;
@@ -32,9 +33,14 @@ void sig_user_1() {   //for asynchronous tests
   printf("SIGUSR1 Received!\n");
   //print_all_info_codes(A);
   //printf("code %X status is %x\n", 0x25, check_remote_code(0x25));
-  printf("pver %X status is %x\n", 0x0, check_rcvd_pvers(0x0));
-  printf("pver %X status is %x\n", 252, check_rcvd_pvers(252));
-  printf("pver %X status is %x\n", 75, check_rcvd_pvers(75));
+  printf("pver %X status is %x\n", 0x0, check_rcvd_pvers(0,0x0));
+  printf("pver %X status is %x\n", 252, check_rcvd_pvers(0,252));
+  printf("pver %X status is %x\n", 75, check_rcvd_pvers(0,75));
+}
+
+uint32_t ScheduleTest(void *ptr) {
+  PrintCmdsString("Scheduled!!\r\n",0);
+  return 2000;
 }
 
 int main()  {
@@ -80,6 +86,8 @@ int main()  {
   signal(SIGINT, clean_up);     //free memory on ^c
   signal(SIGUSR1, sig_user_1);  //asynchronous tests
 
+  init_delay_table();
+
   ASSIGN_ALL_FRAMES();
 
   init_all_frames(all_frames);
@@ -95,12 +103,14 @@ int main()  {
   //SeVersionList_p->SeVersionPageNumber = 0;
   //SeVersionList_p->SeStatusVer = 0;
   //print_all_frames(all_frames);
+  //schedule_if_unscheduled(2000, ScheduleTest, NULL);
 
   while(1)  {
     DetermineLINCPState(A, continueOnLIN);
     //print_all_frames(all_frames);
     //printf("=============================================\n");
-    msleep(20);
+    process_delay_table();
+    msleep(CYCLE_TIME);
   }
 
   shm_unlink(FRAME_MEMORY_IDENTIFIER);

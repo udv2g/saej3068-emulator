@@ -2,25 +2,9 @@
 #include "globals.h"
 #include "info_codes.h"
 #include "info_code_handler.h"
+#include "scheduler.h"
 #include "protocol_version_handler.h"
 #include "ids_handler.h"
-
-static void _lin_strncpy(unsigned char *dest, char *src, uint16_t dst_length, uint16_t src_length) {
-  uint16_t i;
-  char *dest1 = (char *)dest;
-
-  for (i = 0; (i < src_length) && (src[i] != 0); ++i) {
-    if (i >= dst_length)
-      break;
-
-    dest1[i] = src[i];
-  }
-
-  if (i >= dst_length)
-    return;
-
-  dest1[i] = 0;
-}
 
 /*
 l_signal_handle printQueue0[12] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
@@ -31,7 +15,12 @@ l_signal_handle printQueue3[12] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
 
 // clang-format off
 enum FrameFlag {NotReceived = 0, Compatible, Incompatible, Received = 1, Restart = 2, NotArrived = 3};
-static enum FrameFlag EvMinVoltsFrame[2], EvCurrentsFrame[2], EvMaxVoltsFrame[2], EvStatusFrame[2];;
+#ifdef SE_CONFIG
+static enum FrameFlag EvMinVoltsFrame[2], EvCurrentsFrame[2], EvMaxVoltsFrame[2], EvStatusFrame[2];
+static bool lin_Restart[2] = {FALSE, FALSE}, ver_Restart[2] = {FALSE, FALSE}, mcu_Restart[2] = {FALSE, FALSE}, pwr_Restart[2] = {FALSE, FALSE}, int_Restart[2] = {FALSE, FALSE};
+#else
+bool SeNomVoltagesRcvd[2] = {FALSE, FALSE}, SeMaxCurrentsRcvd[2] = {FALSE, FALSE};
+#endif
 enum {PWM, AnnexD, J3068, Error8bit = 254, NotAvail_8bit = 255};
 enum {Incomplete = 0, Complete = 1, Error2bit = 2, NotAvail_2bit = 3};
 enum {Deny_V, Permit_V};
@@ -50,7 +39,6 @@ static l_u8 EvMaxAmpsL1[2], EvMaxAmpsL2[2], EvMaxAmpsL3[2], EvMaxAmpsN[2], EvMin
 //l_u8 SeAvailableAmpsL1 = 254, SeAvailableAmpsL2 = 254, SeAvailableAmpsL3 = 254, l_u8 SeAvailableAmpsN = 254;
 static l_u8 SeMaxAmpsL1[2] = {Error8bit, Error8bit}, SeMaxAmpsL2[2] = {Error8bit, Error8bit}, SeMaxAmpsL3[2] = {Error8bit, Error8bit}, SeMaxAmpsN[2] = {Error8bit, Error8bit};
 static l_u8 EvSelectedVer[2]       = {Error8bit, Error8bit};
-static l_u32 MissingStatusCount[2] = {0, 0};
 
 static bool pvers_rcvd[2];
 
@@ -66,6 +54,8 @@ void PrintLinCPStatus(uint8_t ch) {
   PrintConsoleHex((SeStatusOp[ch] << 4) | EvStatusOp[ch]);
   PrintConsoleString("\r\n", 0);
 }
+
+void InitializeLINvariables(uint8_t ch);
 
 #ifdef EV_CONFIG
 
@@ -89,6 +79,7 @@ uint32_t version_timeoutA(void * a)  {
   EvStatusVer[A] = Error2bit;
   (void)set_priority_info_code(A, EVINFOENTRY_VERSION_FAILS);
   schedule_if_unscheduled(CONNECTION_CLEAR_TIME, clear_last_connection(A), NULL);    //Don't tell the next station about this one's failures
+  InitializeLINvariables(A);
 #pragma MESSAGE DISABLE C2705 //possible loss of data
 #pragma MESSAGE DISABLE C4002 //result not used -- ternary operator should not be used for assignements
 //Why does this fix all of them?
@@ -100,6 +91,7 @@ uint32_t version_timeoutB(void * a)  {
   EvStatusVer[B] = Error2bit;
   (void)set_priority_info_code(B, EVINFOENTRY_VERSION_FAILS);
   schedule_if_unscheduled(CONNECTION_CLEAR_TIME, clear_last_connection(B), NULL);    //Don't tell the next station about this one's failures
+  InitializeLINvariables(B);
   l_bool_wr_LI1_EvAwake(0);   //request sleep
   return 0;
 }
@@ -110,6 +102,7 @@ uint32_t init_timeoutA(void * a)  {
   EvStatusInit[A] = Error2bit;
   (void)set_priority_info_code(A, EVINFOENTRY_INITIALIZATION_FAILS);
   schedule_if_unscheduled(CONNECTION_CLEAR_TIME, clear_last_connection(A), NULL);    //Don't tell the next station about this one's failures
+  InitializeLINvariables(A);
   l_bool_wr_LI0_EvAwake(0);   //request sleep
   return 0;
 }
@@ -118,13 +111,14 @@ uint32_t init_timeoutB(void * a)  {
   EvStatusInit[B] = Error2bit;
   (void)set_priority_info_code(B, EVINFOENTRY_INITIALIZATION_FAILS);
   schedule_if_unscheduled(CONNECTION_CLEAR_TIME, clear_last_connection(B), NULL);    //Don't tell the next station about this one's failures
+  InitializeLINvariables(B);
   l_bool_wr_LI1_EvAwake(0);   //request sleep
   return 0;
 }
 
 #define init_timeout(x) ((x) ? init_timeoutB : init_timeoutA)
 
-static l_u8 SeSupportedVersion[2][5], i, NoMatchCount[2]; // SeVersionPageNumber;
+//static l_u8 SeSupportedVersion[2][5]; // SeVersionPageNumber;
 static l_u8 SeSelectedVersion[2];                         // There are SE selected Version signals in Frames: 0, 2, 5, 6, 7, 9, 11.
 
 void InitializeLINvariables(uint8_t ch) {
@@ -148,26 +142,32 @@ void InitializeLINvariables(uint8_t ch) {
   //SeNomVoltsLN = 0x08FC; SeNomVoltsLL = 0x0FA0; // 230/400 VAC for testing
   SeNomVoltsLN[ch] = NotAvail_16bit; SeNomVoltsLL[ch] = NotAvail_16bit;
   LINPermitVoltage[ch] = Deny_V; // 0 = Deny_V
-  MissingStatusCount[ch] = 0;
+  SeNomVoltagesRcvd[ch] = FALSE, SeMaxCurrentsRcvd[ch] = FALSE;
   // clang-format on
 
   xmit_protocol_version_page(ch);
   LW(ch, l_u8, EvSelectedVersion, NotAvail_8bit);
   LW(ch, l_u16, EvMaxVoltageL1N, EvMaxVoltsLN[ch]);
   LW(ch, l_u16, EvMinVoltageL1N, EvMinVoltsLN[ch]);
-  LW(ch, l_u16, EvMaxVoltageLL, EvMaxVoltsLL[ch]);
-  LW(ch, l_u16, EvMinVoltageLL, EvMinVoltsLL[ch]);
+  LW(ch, l_u16, EvMaxVoltageLL, SP(EvMaxVoltsLL[ch],NotAvail_16bit));
+  LW(ch, l_u16, EvMinVoltageLL, SP(EvMinVoltsLL[ch],NotAvail_16bit));
   LW(ch, l_u8, EvMaxCurrentL1, EvMaxAmpsL1[ch]);
   LW(ch, l_u8, EvMinCurrentL1, EvMinAmpsL1[ch]);
-  LW(ch, l_u8, EvMaxCurrentL2, EvMaxAmpsL2[ch]);
-  LW(ch, l_u8, EvMinCurrentL2, EvMinAmpsL2[ch]);
-  LW(ch, l_u8, EvMaxCurrentL3, EvMaxAmpsL3[ch]);
-  LW(ch, l_u8, EvMinCurrentL3, EvMinAmpsL3[ch]);
+  LW(ch, l_u8, EvMaxCurrentL2, SP(EvMaxAmpsL2[ch],NotAvail_8bit));
+  LW(ch, l_u8, EvMinCurrentL2, SP(EvMinAmpsL2[ch],NotAvail_8bit));
+  LW(ch, l_u8, EvMaxCurrentL3, SP(EvMaxAmpsL3[ch],NotAvail_8bit));
+  LW(ch, l_u8, EvMinCurrentL3, SP(EvMinAmpsL3[ch],NotAvail_8bit));
   LW(ch, l_u8, EvMaxCurrentN, EvMaxAmpsN[ch]);
   LW(ch, l_u8, EvFrequencies, EvFrequencies[ch]);
   LW(ch, l_u8, EvStatusVer, EvStatusVer[ch]);
   LW(ch, l_u8, EvStatusInit, EvStatusInit[ch]);
   LW(ch, l_u8, EvStatusOp, EvStatusOp[ch]);
+  LW(ch, l_u8, EvRequestedCurrentL1, NotAvail_8bit);
+  LW(ch, l_u8, EvRequestedCurrentL2, SP(NotAvail_8bit,0));
+  LW(ch, l_u8, EvRequestedCurrentL3, SP(NotAvail_8bit,0));
+  LW(ch, l_u8, EvRequestedCurrentN, NotAvail_8bit);
+//#pragma MESSAGE DISABLE C4002 //result not used -- ternary operator should not be used for assignements
+  l_bool_wr_LI0_EvAwake(1);
 
   //testing info codes {
   //set_info_code(ch, EVINFOENTRY_VERSION_FAILS);
@@ -184,22 +184,55 @@ void InitializeLINvariables(uint8_t ch) {
   { SeSupportedVersion[i] == 255;
   } */
 
-  //Copy VIN from DFLASH into LIN memory
-  //_lin_strncpy(&lin_pFrameBuf[LIN_BYTE_OFFSET_LI0_Ev_ID_character_1], my_id.id,     8, 8);
-  //_lin_strncpy(&lin_pFrameBuf[LIN_BYTE_OFFSET_LI0_Ev_ID_character_9], &my_id.id[8], 8, 8);
-  //LW(ch,l_u8,Ev_ID_character_17,my_id.id[16]);
-
-  //evse peer id no longer valid
-  //my_peer.valid_p = 0;
-
-  ids_init();
+  ids_init(ch);
 }
 
-/*uint32_t LINCP_Timeout(void *param) {
-  DetermineEvState(BSC_TIMEOUT);   // Also need to clear variables to request to get back to Ver
-  InitializeLINvariables();
+void __op_timeout(uint8_t ch)  {
+  SeAvailAmps[ch].pwm   = 0;
+  SeAvailAmps[ch].C1_L1 = 0;
+  SeAvailAmps[ch].C2_L2 = 0;
+  SeAvailAmps[ch].C3_L3 = 0;
+  SeAvailAmps[ch].C4_N  = 0;
+  EvStatusOp[ch] = Error2bit;
+  LW(ch, l_u8, EvStatusOp, EvStatusOp[ch]);
+  DetermineEvState(ch, BSC_TIMEOUT); // Also need to clear variables to request to get back to Ver
+  schedule_if_unscheduled(CONNECTION_CLEAR_TIME, clear_last_connection(ch), NULL);    //Don't tell the next station about this one's failures
+  InitializeLINvariables(ch);
+  (void)set_priority_info_code(ch, EVINFOENTRY_NO_LIN);
+  //PrintConsoleString("\r\n  LIN Timeout in Op schedule \t",0);
+}
+
+uint32_t op_timeoutA(void * a)  {
+  __op_timeout(A);
   return 0;
-}   */
+}
+
+uint32_t op_timeoutB(void * a)  {
+  __op_timeout(A);
+  return 0;
+}
+
+#define op_timeout(x) ((x) ? op_timeoutB : op_timeoutA)
+
+void verify_comm_ver(uint8_t ch, uint8_t received_ver, bool op)  {
+  if (SeCommVer[ch] != received_ver)  {
+      if(SeCommVer[ch] == NotAvail_8bit)  {   //restart requested
+        DetermineEvState(ch, BSC_TIMEOUT);    //not exactly a timeout, but does what we want
+        InitializeLINvariables(ch);
+      } else{ //version changed
+        (void)set_priority_info_code(ch, EVINFOENTRY_VERSION_RESTART);    //there isn't a perfect code to represent this
+        if(op)  {
+          EvStatusOp[ch] = Error2bit;
+          LW(ch, l_u8, EvStatusOp, EvStatusOp[ch]);
+          LW(ch, l_u8, EvSelectedVersion, NotAvail_8bit);
+        } else{
+          EvStatusInit[ch] = Error2bit;
+          LW(ch, l_u8, EvStatusInit, EvStatusInit[ch]);
+          LW(ch, l_u8, EvSelectedVersion, NotAvail_8bit);
+        }
+      }
+    }
+}
 
 void InitChecks(uint8_t ch) {
   bool initComplete = TRUE;    //Assume all checks pass and set to false if one fails
@@ -255,9 +288,7 @@ void InitChecks(uint8_t ch) {
 
 void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessage) {
 #pragma MESSAGE DISABLE C2705
-  bool SeNomVoltagesRcvd = FALSE, SeMaxCurrentListRcvd = FALSE;
-
-  uint8_t chosen_pver;
+  uint8_t chosen_pver = NotAvail_8bit;
 
   if (LFT(ch, SeVersionList)) {
     //LFC(ch, SeVersionList);
@@ -268,32 +299,41 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
     SeStatusOp[ch]            = LR(ch, l_u8, SeStatusOp_SeVersionList);
     SeCommVer[ch]             = LR(ch, l_u8, SeSelectedVersion_SeVersionList);
 
-    chosen_pver = rcv_protocol_version_page(ch);
-    //SeSupportedVersion[ch][0] = LR(ch, l_u8, SeSupportedVersion1);
-    //SeSupportedVersion[ch][1] = LR(ch, l_u8, SeSupportedVersion2);
-    //SeSupportedVersion[ch][2] = LR(ch, l_u8, SeSupportedVersion3);
-    //SeSupportedVersion[ch][3] = LR(ch, l_u8, SeSupportedVersion4);
-    //SeSupportedVersion[ch][4] = LR(ch, l_u8, SeSupportedVersion5);
-    // SeVersionPageNumber = LR(ch,l_u8,SeVersionPageNumber);
-    /*NoMatchCount[ch]          = 0;
-    for (i = 0; i < 5; i++) {
-      if (SeSupportedVersion[ch][i] == EvCommVer[ch]) { // This handles the Ver schedule.  It ignores the page number so should be able to handle multiple pages
-        LW(ch, l_u8, EvSelectedVersion, EvCommVer[ch]); // This only works as long as only a single version (2 or 1) is supported.  Otherwise, a propper, page ordered
-        break;                                          // list needs to be created.
+    if ((SeStatusVer[ch] == Incomplete || EvCommVer[ch] != NotAvail_8bit) && SeStatusInit[ch] == Incomplete && SeStatusOp[ch] == Deny_V) {
+      chosen_pver = rcv_protocol_version_page(ch);
+      if (chosen_pver != NotAvail_8bit) {                 // we need to keep the chosen value in EvCommVer in case it takes the SE into the next paging cycle to reply
+        EvCommVer[ch] = chosen_pver;
+        LW(ch, l_u8, EvSelectedVersion, EvCommVer[ch]);
       }
-    }*/
-    if (chosen_pver != NotAvail_8bit) {                 // we need to keep the chosen value in EvCommVer in case it takes the SE into the next paging cycle to reply
-      EvCommVer[ch] = chosen_pver;
-      LW(ch, l_u8, EvSelectedVersion, EvCommVer[ch]);
-    }
-    if ((EvCommVer[ch] != NotAvail_8bit) && (SeCommVer[ch] == EvCommVer[ch])) {
-      EvStatusVer[ch] = Complete;
-      schedule_if_unscheduled(T_INIT, init_timeout(ch), NULL);
-      DetermineEvState(ch, BSC_ESTABLISHED);
-      PrintConsoleString("Version Negotiation successful.  Chose Version: ", 0); // Debug
-      PrintConsoleHex(EvCommVer[ch]);
-      PrintConsoleString("\r\n", 0);
-      unschedule(version_timeout(ch));
+
+      if ((EvCommVer[ch] != NotAvail_8bit) && (SeCommVer[ch] == EvCommVer[ch])) {
+        EvStatusVer[ch] = Complete;
+        schedule_if_unscheduled(T_INIT, init_timeout(ch), NULL);
+        switch(EvCommVer[ch]) {
+          case PVER_BASE:
+            LW(ch, l_u8, EvConnectionType, CONNTP_NOTSPECIFIED);
+            break;
+          case PVER_SLASH_1:
+            LW(ch, l_u8, EvConnectionType, EV_CONNTP);
+            break;
+        }
+        DetermineEvState(ch, BSC_ESTABLISHED);
+        PrintConsoleString("Version Negotiation successful.  Chose Version: ", 0); // Debug
+        PrintConsoleHex(EvCommVer[ch]);
+        PrintConsoleString("\r\n", 0);
+        unschedule(version_timeout(ch));
+        clear_all_info_codes(ch);  //clear anything that might be left over from pervious connection
+      }
+    } else  {
+      PrintConsoleString("Incorrect SE Status, V:" ,0);
+      PrintConsoleHex(SeStatusVer[ch]);
+      PrintConsoleString(" I:",0);
+      PrintConsoleHex(SeStatusInit[ch]);
+      PrintConsoleString(" O:",0);
+      PrintConsoleHex(SeStatusOp[ch]);
+      PrintConsoleString("\r\n",0);
+      EvStatusVer[ch] = Error2bit;
+      (void)set_priority_info_code(ch, EVINFOENTRY_VERSION_FAILS);    
     }
 
     LW(ch, l_u8, EvStatusVer, EvStatusVer[ch]);
@@ -310,16 +350,16 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
     SeNomVoltsLL[ch]      = LR(ch, l_u16, SeNomVoltageLL);
     SeFrequency[ch]       = LR(ch, l_u8, SeFrequency);
     SeSelectedVersion[ch] = LR(ch, l_u8, SeSelectedVersion_SeNomVoltages);
-    SeNomVoltagesRcvd = TRUE;
+    SeNomVoltagesRcvd[ch] = TRUE;
   }
-  if (LFT(ch, SeMaxCurrentList)) {
-    LFC(ch, SeMaxCurrentList);
+  if (LFT(ch, SeMaxCurrents)) {
+    LFC(ch, SeMaxCurrents);
     SeMaxAmpsL1[ch]       = LR(ch, l_u8, SeMaxCurrentL1);
     SeMaxAmpsL2[ch]       = LR(ch, l_u8, SeMaxCurrentL2);
     SeMaxAmpsL3[ch]       = LR(ch, l_u8, SeMaxCurrentL3);
     SeMaxAmpsN[ch]        = LR(ch, l_u8, SeMaxCurrentN);
-    SeSelectedVersion[ch] = LR(ch, l_u8, SeSelectedVersion_SeMaxCurrentList);
-    SeMaxCurrentListRcvd = TRUE;
+    SeSelectedVersion[ch] = LR(ch, l_u8, SeSelectedVersion_SeMaxCurrents);
+    SeMaxCurrentsRcvd[ch] = TRUE;
   }
   if (LFT(ch, EvInfoList)) {
     xmit_info_code_page(ch);
@@ -328,18 +368,16 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
     rcv_info_code_page(ch);
   }
 
-  if (ch == A)  { //only single channel for now
-    if (LFT(A, EvID)) {
-      on_id_frame_xmit();
-      LFC(A, EvID);
-    }
-    if (LFT(A, SeID)) {
-      on_id_frame_receipt();
-      LFC(A, SeID);
-    }
+  if (LFT(A, EvID)) {
+    on_id_frame_xmit(ch);
+    LFC(A, EvID);
+  }
+  if (LFT(A, SeID)) {
+    on_id_frame_receipt(ch);
+    LFC(A, SeID);
   }
 
-  if (SeNomVoltagesRcvd && SeMaxCurrentListRcvd)  {  // Perform initialization checks only after all information has been read to prevent unread data from bypassing checks
+  if ((SeNomVoltagesRcvd[ch] && SeMaxCurrentsRcvd[ch]) && ((SeNomVoltsLN[ch] != NotAvail_16bit) || (SeNomVoltsLL[ch] != NotAvail_16bit)))  {  // Perform initialization checks only after all information has been read to prevent unread data from bypassing checks R#:9.6.3.1
     InitChecks(ch);
     // Clear any Restart info codes
     (void)clear_info_code(ch, EVINFOENTRY_NO_LIN);
@@ -348,38 +386,47 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
     (void)clear_info_code(ch, EVINFOENTRY_MCU_RESET_RESTART);
     (void)clear_info_code(ch, EVINFOENTRY_PILOT_FAULT_RESTART);
     (void)clear_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
-    SeNomVoltagesRcvd = FALSE; SeMaxCurrentListRcvd = FALSE; // Clear read flags so the checks don't keep happening once in Op
+    SeNomVoltagesRcvd[ch] = FALSE; SeMaxCurrentsRcvd[ch] = FALSE; // Clear read flags so the checks don't keep happening once in Op
   }
   if (LFT(ch, SeStatus)) // Check for LIN communication timeout, after 2 seconds should open S2
   {
     LFC(ch, SeStatus);
-    MissingStatusCount[ch] = 0;
     SeStatusVer[ch]        = LR(ch, l_u8, SeStatusVer_SeStatus);
     SeStatusInit[ch]       = LR(ch, l_u8, SeStatusInit_SeStatus);
     SeStatusOp[ch]         = LR(ch, l_u8, SeStatusOp_SeStatus);
 
-    SeAvailAmps[ch].C1_L1 = LR(ch, l_u8, SeAvailableCurrentL1);
-    SeAvailAmps[ch].C2_L2 = LR(ch, l_u8, SeAvailableCurrentL2);
-    SeAvailAmps[ch].C3_L3 = LR(ch, l_u8, SeAvailableCurrentL3);
-    SeAvailAmps[ch].C4_N  = LR(ch, l_u8, SeAvailableCurrentN);
+    verify_comm_ver(ch, LR(ch, l_u8, SeSelectedVersion_SeStatus), (SeStatusInit[ch] == Complete) && (EvStatusInit[ch] == Complete));
 
-    SeAvailAmps[ch].pwm = SeAvailAmps[ch].C1_L1;
-    if (SeAvailAmps[ch].C2_L2 < SeAvailAmps[ch].pwm) SeAvailAmps[ch].pwm = SeAvailAmps[ch].C2_L2;
-    if (SeAvailAmps[ch].C3_L3 < SeAvailAmps[ch].pwm) SeAvailAmps[ch].pwm = SeAvailAmps[ch].C3_L3;
-    if (SeAvailAmps[ch].C4_N < SeAvailAmps[ch].pwm) SeAvailAmps[ch].pwm = SeAvailAmps[ch].C4_N;
-    //schedule_and_reset(2000,LINCP_Timeout, NULL);  // Is this causing the random restarts?  So it appears...
+    //Make sure all currents are 0 if charging is disallowed.  This is probably redundant but there is no harm in being sure.
+    if((SeStatusOp[ch] == Permit_V) && (EvStatusOp[ch] == Permit_V))  {
+      SeAvailAmps[ch].C1_L1 = LR(ch, l_u8, SeAvailableCurrentL1);
+      SeAvailAmps[ch].C2_L2 = LR(ch, l_u8, SeAvailableCurrentL2);
+      SeAvailAmps[ch].C3_L3 = LR(ch, l_u8, SeAvailableCurrentL3);
+      SeAvailAmps[ch].C4_N  = LR(ch, l_u8, SeAvailableCurrentN);
 
-  } else {
-    if ((++MissingStatusCount[ch] == L_NOLIN) && (SeStatusInit[ch] == Complete) && (EvStatusInit[ch] == Complete) )  //Only in OP, determine by both StatisInits Complete
-    {
-      //Need to rampdown first if contactor closed FIXME
-      DetermineEvState(ch, BSC_TIMEOUT); // Also need to clear variables to request to get back to Ver
-      schedule_if_unscheduled(CONNECTION_CLEAR_TIME, clear_last_connection(ch), NULL);    //Don't tell the next station about this one's failures
-      InitializeLINvariables(ch);
-      clear_all_info_codes(ch); // Clear any info codes from a previous connection
-      (void)set_priority_info_code(ch, EVINFOENTRY_NO_LIN);
-      //PrintConsoleString("\r\n  LIN Timeout in Op schedule \t",0);
+      //Do not allow available current to exceed maximum current as defined in Init.
+      if (SeMaxAmpsL1[ch] < SeAvailAmps[ch].C1_L1) SeAvailAmps[ch].C1_L1 = SeMaxAmpsL1[ch];
+      if (SeMaxAmpsL2[ch] < SeAvailAmps[ch].C2_L2) SeAvailAmps[ch].C2_L2 = SeMaxAmpsL2[ch];
+      if (SeMaxAmpsL3[ch] < SeAvailAmps[ch].C3_L3) SeAvailAmps[ch].C3_L3 = SeMaxAmpsL3[ch];
+      if (SeMaxAmpsN[ch]  < SeAvailAmps[ch].C4_N)  SeAvailAmps[ch].C4_N  = SeMaxAmpsN[ch];
+
+      //Set PWM current to the lowest of the contact currents.  
+      SeAvailAmps[ch].pwm = SeAvailAmps[ch].C1_L1;
+      if (SeAvailAmps[ch].C2_L2 < SeAvailAmps[ch].pwm) SeAvailAmps[ch].pwm = SeAvailAmps[ch].C2_L2;
+      if (SeAvailAmps[ch].C3_L3 < SeAvailAmps[ch].pwm) SeAvailAmps[ch].pwm = SeAvailAmps[ch].C3_L3;
+      if (SeAvailAmps[ch].C4_N < SeAvailAmps[ch].pwm) SeAvailAmps[ch].pwm = SeAvailAmps[ch].C4_N;
+    } else  {
+      SeAvailAmps[ch].pwm   = 0;
+      SeAvailAmps[ch].C1_L1 = 0;
+      SeAvailAmps[ch].C2_L2 = 0;
+      SeAvailAmps[ch].C3_L3 = 0;
+      SeAvailAmps[ch].C4_N  = 0;
     }
+
+    if ((SeStatusInit[ch] == Complete) && (EvStatusInit[ch] == Complete)) { //schedule is op
+      schedule_and_reset(T_NOLIN, op_timeout(ch), NULL);
+    }
+
   }
   if ((EvStatusInit[ch] == Complete) && (SeStatusInit[ch] == Complete) ) {
     EvStatusOp[ch] = Permit_V;
@@ -434,14 +481,31 @@ uint32_t init_timeoutB(void * a)  {
 
 #define init_timeout(x) ((x) ? init_timeoutB : init_timeoutA)
 
-/* 02 May 2019 Jim McLaughlin
-   Random restarts were worked around by removing Single Board PC, today's SBPC code is for VEL 5.2 (this LIN code VEL 6 only)
-   Random contactor cycling was worked around by allowing charging to continue when RCD reports unknown state
-   Both fixes are temporary.
-   LINPermitVoltage distinguishes between Annex D and J3068 for EvStatusOp but needs a better name.
-   SeStatusOp is only being set according to J3068, needs to be generalized.
-   Supports EvCommVer = 253 for Vattenfall demo
-*/
+void __op_timeout(uint8_t ch)  {
+  LW(ch, l_u8, SeAvailableCurrentL1, 0);
+  LW(ch, l_u8, SeAvailableCurrentL2, SP(0, NotAvail_8bit));
+  LW(ch, l_u8, SeAvailableCurrentL3, SP(0, NotAvail_8bit));
+  LW(ch, l_u8, SeAvailableCurrentN, 0);
+
+  (void)set_priority_info_code(ch, SEINFOENTRY_NO_LIN);
+  lin_Restart[ch] = TRUE;         // Set the comm fault code in Ver after the restart
+
+  LINPermitVoltage[ch] = Deny_V; // Requirement R#:10.7.2.1
+  SchedulePicker[ch] = StartVer; // Restart
+}
+
+uint32_t op_timeoutA(void * a)  {
+  __op_timeout(A);
+  return 0;
+}
+
+uint32_t op_timeoutB(void * a)  {
+  __op_timeout(A);
+  return 0;
+}
+
+#define op_timeout(x) ((x) ? op_timeoutB : op_timeoutA)
+
 void InitializeLINvariables(uint8_t ch) {
   // clang-format off
   SeCommVer[ch] = NotAvail_8bit; EvCommVer[ch] = NotAvail_8bit;      // 255 = Not Available
@@ -454,7 +518,7 @@ void InitializeLINvariables(uint8_t ch) {
   //do we need those
   //SeAvailableAmpsL1 = 16; SeAvailableAmpsL2 = 16; SeAvailableAmpsL3 = 16; SeAvailableAmpsN = 12;
   SeFrequency[ch] = SE_FREQUENCY;
-  SeMaxAmpsL1[ch] = SE_MAX_CURRENT_L; SeMaxAmpsL2[ch] = SE_MAX_CURRENT_L; SeMaxAmpsL3[ch] = SE_MAX_CURRENT_L; SeMaxAmpsN[ch] = SE_MAX_CURRENT_N;
+  SeMaxAmpsL1[ch] = SE_MAX_CURRENT_L; SeMaxAmpsL2[ch] = SP(SE_MAX_CURRENT_L,0); SeMaxAmpsL3[ch] = SP(SE_MAX_CURRENT_L,0); SeMaxAmpsN[ch] = SE_MAX_CURRENT_N;
   EvSelectedVer[ch] = NotAvail_8bit;
   // clang-format on
   //SeNomVoltsLN = 0x0AD2; SeNomVoltsLL = 4800; // 277 VAC Line to Neutral, 480 VAC line to line
@@ -464,17 +528,10 @@ void InitializeLINvariables(uint8_t ch) {
   SeNomVoltsLN[ch]       = SE_NOMINAL_VOLTAGE_LN;
   SeNomVoltsLL[ch]       = SE_NOMINAL_VOLTAGE_LL;
   LINPermitVoltage[ch]   = Deny_V; // 0 = contactors open.  Related to SeStatusOp but SeStatusOp is inconsistent between J3068 and Annex D.
-  MissingStatusCount[ch] = 0;
   SchedulePicker[ch]     = StartNull;
   pvers_rcvd[ch]         = FALSE;
-  //read from data read from dflash, this needs to be done avross the board, just a start here
 
-  //Copy ID number from DFLASH to LIN buffer (limited to 8 chars)
-  //_lin_strncpy(&lin_pFrameBuf[LIN_BYTE_OFFSET_LI0_EUI64_byte1], my_id.id, 8, my_id.length);
-  //my_peer.valid_p = 0;
-  //COMM_MODE = COMM_UNINIT;
-
-  ids_init();
+  ids_init(ch);
 
   //testing info codes {
   //set_info_code(ch, SEINFOENTRY_PILOT_FAULT);
@@ -530,11 +587,6 @@ void StartScheduleNull(uint8_t ch) {
 void StartScheduleVer(uint8_t ch) {
 #pragma MESSAGE DISABLE C2705
   LW(ch, l_u8, SeSelectedVersion, NotAvail_8bit); // Initialize LIN signals
-  //LW(ch, l_u8, SeSupportedVersion1, J3068);
-  //LW(ch, l_u8, SeSupportedVersion2, NotAvail_8bit);
-  //LW(ch, l_u8, SeSupportedVersion3, NotAvail_8bit);
-  //LW(ch, l_u8, SeSupportedVersion4, NotAvail_8bit);
-  //LW(ch, l_u8, SeSupportedVersion5, NotAvail_8bit);
   xmit_protocol_version_page(ch);
   LW(ch, l_u8, SeFrequency, SeFrequency[ch]);
   WriteSeStatus(ch);
@@ -548,13 +600,23 @@ void StartScheduleInit(uint8_t ch) {
   LW(ch, l_u8, SeMaxCurrentN, SeMaxAmpsN[ch]);
 
   LW(ch, l_u16, SeNomVoltageL1N, SeNomVoltsLN[ch]);
-  LW(ch, l_u16, SeNomVoltageLL, SeNomVoltsLL[ch]);
-  LW(ch, l_u8, SeAvailableCurrentL1, evse_state_S(ch).set_c.C1_L1);
-  LW(ch, l_u8, SeAvailableCurrentL2, evse_state_S(ch).set_c.C2_L2);
-  LW(ch, l_u8, SeAvailableCurrentL3, evse_state_S(ch).set_c.C3_L3);
-  LW(ch, l_u8, SeAvailableCurrentN, evse_state_S(ch).set_c.C4_N);
+  LW(ch, l_u16, SeNomVoltageLL, SP(SeNomVoltsLL[ch],NotAvail_16bit));
+  LW(ch, l_u8, SeAvailableCurrentL1, evse_state[ch].set_c.C1_L1);
+  LW(ch, l_u8, SeAvailableCurrentL2, SP(evse_state[ch].set_c.C2_L2, NotAvail_8bit));
+  LW(ch, l_u8, SeAvailableCurrentL3, SP(evse_state[ch].set_c.C3_L3, NotAvail_8bit));
+  LW(ch, l_u8, SeAvailableCurrentN, evse_state[ch].set_c.C4_N);
   EvMinVoltsFrame[ch] = NotReceived, EvCurrentsFrame[ch] = NotReceived, EvStatusFrame[ch] = NotReceived;
   EvMaxVoltsFrame[ch] = NotReceived;
+
+  switch(EvCommVer[ch]) {
+    case PVER_BASE:
+      LW(ch, l_u8, SeConnectionType, CONNTP_NOTSPECIFIED);
+      break;
+    case PVER_SLASH_1:
+      LW(ch, l_u8, SeConnectionType, SE_CONNTP);
+      break;
+  }
+
   LSS(ch, Init, 0); // Start the Init schedule
 }
 void StartScheduleOp(uint8_t ch) {
@@ -578,7 +640,7 @@ void StartScheduleOp(uint8_t ch) {
       LSS(ch, Op, 0); // Start the J3068/null Op schedule
       break;
     case PVER_SLASH_1:
-      LSS(ch, Op_S1, 0); // Start the J3068/1 Op schedule
+      LSS(ch, Op3, 0); // Start the J3068/1 Op schedule
       break;
   }
 }
@@ -599,18 +661,18 @@ void ReadEvVersionListSignals(uint8_t ch) {
 }
 void ReadEvMaxVoltsAndFreq(uint8_t ch) {
 #pragma MESSAGE DISABLE C2705
-  LFC(ch, EvMaxVoltageList);
+  LFC(ch, EvMaxVoltages);
   EvMaxVoltsLL[ch]  = LR(ch, l_u16, EvMaxVoltageLL);
   EvMaxVoltsLN[ch]  = LR(ch, l_u16, EvMaxVoltageL1N);
   EvFrequencies[ch] = LR(ch, l_u8, EvFrequencies);
-  EvSelectedVer[ch] = LR(ch, l_u8, EvSelectedVersion_EvMaxVoltageList);
+  EvSelectedVer[ch] = LR(ch, l_u8, EvSelectedVersion_EvMaxVoltages);
 }
 void ReadEvMinVolts(uint8_t ch) {
 #pragma MESSAGE DISABLE C2705
-  LFC(ch, EvMinVoltageList);
+  LFC(ch, EvMinVoltages);
   EvMinVoltsLL[ch]  = LR(ch, l_u16, EvMinVoltageLL);
   EvMinVoltsLN[ch]  = LR(ch, l_u16, EvMinVoltageL1N);
-  EvSelectedVer[ch] = LR(ch, l_u8, EvSelectedVersion_EvMinVoltageList);
+  EvSelectedVer[ch] = LR(ch, l_u8, EvSelectedVersion_EvMinVoltages);
 }
 void ReadEvCurrentRatings(uint8_t ch) {
 #pragma MESSAGE DISABLE C2705
@@ -636,8 +698,6 @@ void ReadEvStatus(uint8_t ch) {
 }
 
 void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessage) {
-  static bool lin_Restart = FALSE, ver_Restart = FALSE, mcu_Restart = FALSE, pwr_Restart = FALSE, int_Restart = FALSE;
-
   //PrintConsoleHex(SchedulePicker);
   //PrintConsoleString("$\r\n",0);
   if (SchedulePickerMessage == startLIN) {
@@ -651,11 +711,11 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
   {
     case StartNull:
       InitializeLINvariables(ch);
-      lin_Restart = FALSE;  //disconnect means this is not a restart
-      ver_Restart = FALSE;
-      mcu_Restart = FALSE;
-      pwr_Restart = FALSE;
-      int_Restart = FALSE;
+      lin_Restart[ch] = FALSE;  //disconnect means this is not a restart
+      ver_Restart[ch] = FALSE;
+      mcu_Restart[ch] = FALSE;
+      pwr_Restart[ch] = FALSE;
+      int_Restart[ch] = FALSE;
       StartScheduleNull(ch);
       SchedulePicker[ch] = RunNull;
       break;
@@ -665,25 +725,25 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
       schedule_if_unscheduled(T_VER, version_timeout(ch), NULL);
       InitializeLINvariables(ch); // reinit if a restart
       clear_all_info_codes(ch); // Clear any info codes from a previous connection
-      if (lin_Restart)  {
+      if (lin_Restart[ch])  {
         (void)set_priority_info_code(ch, SEINFOENTRY_NO_LIN);
-        lin_Restart = FALSE;
+        lin_Restart[ch] = FALSE;
       }
-      if (ver_Restart)  {
+      if (ver_Restart[ch])  {
         (void)set_priority_info_code(ch, SEINFOENTRY_VERSION_RESTART);
-        ver_Restart = FALSE;
+        ver_Restart[ch] = FALSE;
       }
-      if (mcu_Restart)  {
+      if (mcu_Restart[ch])  {
         (void)set_priority_info_code(ch, SEINFOENTRY_MCU_RESET_RESTART);
-        mcu_Restart = FALSE;
+        mcu_Restart[ch] = FALSE;
       }
-      if (pwr_Restart)  {
+      if (pwr_Restart[ch])  {
         (void)set_priority_info_code(ch, SEINFOENTRY_POWER_FAULT_RESTART);
-        pwr_Restart = FALSE;
+        pwr_Restart[ch] = FALSE;
       }
-      if (int_Restart)  {
+      if (int_Restart[ch])  {
         (void)set_priority_info_code(ch, SEINFOENTRY_INT_FAULT_RESTART);
-        int_Restart = FALSE;
+        int_Restart[ch] = FALSE;
       }
       StartScheduleVer(ch);
       SchedulePicker[ch] = RunVer; // Will run next time through this loop
@@ -692,29 +752,41 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
       if (LFT(ch, EvVersionList)) // If EV is responding, process Version signals, otherwise wait for wakeup
       {
         ReadEvVersionListSignals(ch);
-        if(!rcv_protocol_version_page(ch)) pvers_rcvd[ch] = TRUE;
-        if (pvers_rcvd[ch]) {                      // We have the EV support list
-          if (check_pver_supported(EvCommVer[ch])) // EV picked a supported version
-          {
-            SeCommVer[ch] = EvCommVer[ch]; // SE accepts EV's choice
-            //LW(ch,l_u8,SeInfoEntry1,NotAvail_8bit); // Clear any info code that might have been set previously
-            //LW(ch,l_u8,SeInfoEntry2,NotAvail_8bit);
-            SeStatusVer[ch] = Complete;
-            if (EvStatusVer[ch] == Complete) {
-              SchedulePicker[ch] = StartInit; // Signal transition to Init schedule, which happens next time through this loop
-              // DetermineEvseStateA(BSC_ESTABLISHED); // Tells the supervior system that LIN Baseband Communication has been established (it does not determine whether it has, we just did that so it is misnamed)
-            }
-          } else // EvCommVer must be either NotAvailable, Error, or invalid version
-          {
-            SeCommVer[ch]   = NotAvail_8bit;
-            SeStatusVer[ch] = Incomplete;                                                                        // Assumption to be refined below
-            if ((EvCommVer[ch] != NotAvail_8bit && EvCommVer[ch] != Error8bit) || (EvStatusVer[ch] == Complete)) // An invalid version was chosen  OR  EV signaled complete too soon
+        if (!((EvStatusVer[ch] == Incomplete || EvCommVer[ch] != NotAvail_8bit) && SeStatusInit[ch] == Incomplete && SeStatusOp[ch] == Deny_V)) {
+          PrintConsoleString("Incorrect EV Status, V:" ,0);
+          PrintConsoleHex(EvStatusVer[ch]);
+          PrintConsoleString(" I:",0);
+          PrintConsoleHex(EvStatusInit[ch]);
+          PrintConsoleString(" O:",0);
+          PrintConsoleHex(EvStatusOp[ch]);
+          PrintConsoleString("\r\n",0);
+          SeStatusVer[ch] = Error2bit;
+          (void)set_priority_info_code(ch, SEINFOENTRY_VERSION_FAILS);  
+        } else {
+          if(!rcv_protocol_version_page(ch)) pvers_rcvd[ch] = TRUE;
+          if (pvers_rcvd[ch]) {                      // We have the EV support list
+            if (check_pver_supported(EvCommVer[ch])) // EV picked a supported version
             {
-              SeStatusVer[ch] = Error2bit;
-              (void)set_priority_info_code(ch, SEINFOENTRY_VERSION_FAILS);
-            } else // EvCommVer = NotAvailable or Error
+              SeCommVer[ch] = EvCommVer[ch]; // SE accepts EV's choice
+              //LW(ch,l_u8,SeInfoEntry1,NotAvail_8bit); // Clear any info code that might have been set previously
+              //LW(ch,l_u8,SeInfoEntry2,NotAvail_8bit);
+              SeStatusVer[ch] = Complete;
+              if (EvStatusVer[ch] == Complete) {
+                SchedulePicker[ch] = StartInit; // Signal transition to Init schedule, which happens next time through this loop
+                // DetermineEvseStateA(BSC_ESTABLISHED); // Tells the supervior system that LIN Baseband Communication has been established (it does not determine whether it has, we just did that so it is misnamed)
+              }
+            } else // EvCommVer must be either NotAvailable, Error, or invalid version
             {
-              (void)clear_info_code(ch, SEINFOENTRY_VERSION_FAILS);
+              SeCommVer[ch]   = NotAvail_8bit;
+              SeStatusVer[ch] = Incomplete;                                                                        // Assumption to be refined below
+              if ((EvCommVer[ch] != NotAvail_8bit && EvCommVer[ch] != Error8bit) || (EvStatusVer[ch] == Complete)) // An invalid version was chosen  OR  EV signaled complete too soon
+              {
+                SeStatusVer[ch] = Error2bit;
+                (void)set_priority_info_code(ch, SEINFOENTRY_VERSION_FAILS);
+              } else // EvCommVer = NotAvailable or Error
+              {
+                (void)clear_info_code(ch, SEINFOENTRY_VERSION_FAILS);
+              }
             }
           }
         }
@@ -753,10 +825,11 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
           (void)clear_info_code(ch, SEINFOENTRY_INITIALIZATION_FAILS); // Clear Se Info Code, this does not clear if it is the last error to clear, that is done below
         }
       }
-      if (LFT(ch, EvMaxVoltageList)) {
-        ReadEvMaxVoltsAndFreq(ch);        // Need to check for NotAvailable values as well...
+      if (LFT(ch, EvMaxVoltages)) {
+        ReadEvMaxVoltsAndFreq(ch);
         EvMaxVoltsFrame[ch] = Compatible; //  Starting assumption to be changed below if needed
-        if ((EvMaxVoltsLL[ch] < SeNomVoltsLL[ch]) || (EvMaxVoltsLN[ch] < SeNomVoltsLN[ch])) {
+        if (!( ((EvMaxVoltsLL[ch] == NotAvail_16bit) || (SeNomVoltsLL[ch] == NotAvail_16bit) || (EvMaxVoltsLL[ch] > SeNomVoltsLL[ch])) && 
+               ((EvMaxVoltsLN[ch] == NotAvail_16bit) || (SeNomVoltsLN[ch] == NotAvail_16bit) || (EvMaxVoltsLN[ch] > SeNomVoltsLN[ch])) )) {
           EvMaxVoltsFrame[ch] = Incompatible;                                       // Voltage too high
           (void)set_priority_info_code(ch, SEINFOENTRY_AVAILABLE_VOLTAGE_TOO_HIGH); // Info code meaning Supply Voltage Too High for EV
         } else if ((EvMaxVoltsLL[ch] > MaxValidVoltage) && (EvMaxVoltsLN[ch] > MaxValidVoltage))        // Both signals are invalid (greater than 1000.0 V)
@@ -775,7 +848,9 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
       }
       if (LFT(ch, EvMaxMinCurrents)) {
         ReadEvCurrentRatings(ch);
-        if ((EvMinAmpsL1[ch] > SeMaxAmpsL1[ch]) || (EvMinAmpsL2[ch] > SeMaxAmpsL2[ch]) || (EvMinAmpsL3[ch] > SeMaxAmpsL3[ch])) // Current too low
+        if (((EvMinAmpsL1[ch] != NotAvail_8bit) && (EvMinAmpsL1[ch] > SeMaxAmpsL1[ch])) || 
+            ((EvMinAmpsL2[ch] != NotAvail_8bit) && (EvMinAmpsL2[ch] > SeMaxAmpsL2[ch])) || 
+            ((EvMinAmpsL3[ch] != NotAvail_8bit) && (EvMinAmpsL3[ch] > SeMaxAmpsL3[ch]))) // Current too low
         {
           EvCurrentsFrame[ch] = Incompatible;
           (void)set_priority_info_code(ch, SEINFOENTRY_AVAILABLE_CURRENT_TOO_LOW); // Info code meaning Minimum available current is too low
@@ -785,7 +860,7 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
           (void)clear_info_code(ch, SEINFOENTRY_AVAILABLE_CURRENT_TOO_LOW); // Clear the info code
         }
       }
-      if (LFT(ch, EvMinVoltageList)) {
+      if (LFT(ch, EvMinVoltages)) {
         ReadEvMinVolts(ch); // Below, one signal can be invalid (>0x2710 or 1000.0 V) but not both
         if (((EvMinVoltsLL[ch] > SeNomVoltsLL[ch]) && (EvMinVoltsLL[ch] < MaxValidVoltage)) || ((EvMinVoltsLN[ch] > SeNomVoltsLN[ch]) && (EvMinVoltsLN[ch] < MaxValidVoltage))) {
           EvMinVoltsFrame[ch] = Incompatible;
@@ -817,17 +892,11 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
       SchedulePicker[ch] = RunOp;
       break;
     case RunOp:
-      //This will cause resets if STATE_E is detected during dominate transmit                            // Might not be complete yet...
-      /*if ((PilotA_Voltage != STATE_B) && (PilotA_Voltage != STATE_C))
-        { SchedulePicker = StartVer;        // Requirements 10.8.3.1 and 10.8.4.1
-        }  */
-      // Was StartNull before merge with Rodney's code but this is probably better in the old stand alone anyway
-      //SeStatusOp = ((rcd_state_a.state == RCD_STATE_READY) || (rcd_state_a.state == RCD_STATE_UNKNOWN));  //  Temporary fix for random power loss until Andrew fixes the RCD comm glitch.
       SeStatusOp[ch] = Complete;                //FIXME
       LW(ch, l_u8, SeStatusOp, SeStatusOp[ch]); // Need to clear this on timeout?
       if (LFT(ch, EvStatus))                    // Check for EV reboot
       {
-        MissingStatusCount[ch] = 0; // Timer reset
+        schedule_and_reset(T_NOLIN, op_timeout(ch), NULL);
         ReadEvStatus(ch);
         if ((SeCommVer[ch] != EvSelectedVer[ch]) || (EvStatusVer[ch] != Complete) || (EvStatusInit[ch] != Complete)) {
           SchedulePicker[ch] = StartVer; // Restart if EvSelectedVersion or EvStatus has changed
@@ -838,24 +907,10 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
           } else {
             LINPermitVoltage[ch] = (LR(ch, l_u8, EvStatusOp_EvStatus) == Permit_V); // = 1 when contactor closure is allowed
           }
-          LW(ch, l_u8, SeAvailableCurrentL1, evse_state_S(ch).set_c.C1_L1);
-          LW(ch, l_u8, SeAvailableCurrentL2, evse_state_S(ch).set_c.C2_L2);
-          LW(ch, l_u8, SeAvailableCurrentL3, evse_state_S(ch).set_c.C3_L3);
-          LW(ch, l_u8, SeAvailableCurrentN, evse_state_S(ch).set_c.C4_N);
-        }
-      } else {
-        if (++MissingStatusCount[ch] == L_NOLIN)
-        {
-          LW(ch, l_u8, SeAvailableCurrentL1, 0);
-          LW(ch, l_u8, SeAvailableCurrentL2, 0);
-          LW(ch, l_u8, SeAvailableCurrentL3, 0);
-          LW(ch, l_u8, SeAvailableCurrentN, 0);
-
-          (void)set_priority_info_code(ch, SEINFOENTRY_NO_LIN);
-          lin_Restart = TRUE;           // Set the comm fault code in Ver after the restart
-
-          LINPermitVoltage[ch] = Deny_V; // Requirement 10.7.2.1
-          SchedulePicker[ch] = StartVer; // Restart
+          LW(ch, l_u8, SeAvailableCurrentL1, (((evse_state[ch].set_c.C1_L1 > 0) && (evse_state[ch].set_c.C1_L1 < EvMinAmpsL1[ch])) ? EvMinAmpsL1[ch] : evse_state[ch].set_c.C1_L1));  //R#:9.6.2.5, any value between 0 and MinAmps must be MinAmps
+          LW(ch, l_u8, SeAvailableCurrentL2, SP((((evse_state[ch].set_c.C2_L2 > 0) && (evse_state[ch].set_c.C2_L2 < EvMinAmpsL2[ch])) ? EvMinAmpsL2[ch] : evse_state[ch].set_c.C2_L2), NotAvail_8bit));
+          LW(ch, l_u8, SeAvailableCurrentL3, SP((((evse_state[ch].set_c.C3_L3 > 0) && (evse_state[ch].set_c.C3_L3 < EvMinAmpsL3[ch])) ? EvMinAmpsL3[ch] : evse_state[ch].set_c.C3_L3), NotAvail_8bit));
+          LW(ch, l_u8, SeAvailableCurrentN, (((evse_state[ch].set_c.C4_N > 0) && (evse_state[ch].set_c.C4_N < EvMinAmpsL1[ch])) ? EvMinAmpsL1[ch] : evse_state[ch].set_c.C4_N));     //Not having EvMinAmpsN is kind of a problem, this is the only solution for 1p and seems reasonable for 3p
         }
       }
       break;
@@ -884,15 +939,13 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
     xmit_protocol_version_page(ch);
   }
 
-  if (ch == A)  { //only single channel for now
-    if (LFT(A, SeID)) {
-      on_id_frame_xmit();
-      LFC(A, SeID);
-    }
-    if (LFT(A, EvID)) {
-      on_id_frame_receipt();
-      LFC(A, EvID);
-    }
+  if (LFT(A, SeID)) {
+    on_id_frame_xmit(ch);
+    LFC(A, SeID);
+  }
+  if (LFT(A, EvID)) {
+    on_id_frame_receipt(ch);
+    LFC(A, EvID);
   }
 #pragma MESSAGE DISABLE C12056 //debug info incorrect because of optimization or inline assembler
 } // End of DetermineLINCPState (which is not all it does)

@@ -9,11 +9,11 @@ schedule_action_t schedule_ver[NUMBER_OF_FRAMES] = {
   CopyEvToSe,     //EvVersionList
   DoNothing,      //SeStatus
   DoNothing,      //EvStatus
-  DoNothing,      //EvPresentCurrentList
+  DoNothing,      //EvPresentCurrents
   DoNothing,      //SeNomVoltages
-  DoNothing,      //SeMaxCurrentList
-  DoNothing,      //EvMaxVoltageList
-  DoNothing,      //EvMinVoltageList
+  DoNothing,      //SeMaxCurrents
+  DoNothing,      //EvMaxVoltages
+  DoNothing,      //EvMinVoltages
   DoNothing,      //EvMaxMinCurrents
   DoNothing,      //CaProperties
   CopySeToEv,     //SeInfoList
@@ -29,11 +29,11 @@ schedule_action_t schedule_init[NUMBER_OF_FRAMES] = {
   DoNothing,      //EvVersionList
   CopySeToEv,     //SeStatus
   CopyEvToSe,     //EvStatus
-  DoNothing,      //EvPresentCurrentList
+  DoNothing,      //EvPresentCurrents
   CopySeToEv,     //SeNomVoltages
-  CopySeToEv,     //SeMaxCurrentList
-  CopyEvToSe,     //EvMaxVoltageList
-  CopyEvToSe,     //EvMinVoltageList
+  CopySeToEv,     //SeMaxCurrents
+  CopyEvToSe,     //EvMaxVoltages
+  CopyEvToSe,     //EvMinVoltages
   CopyEvToSe,     //EvMaxMinCurrents
   DoNothing,      //CaProperties
   CopySeToEv,     //SeInfoList
@@ -49,11 +49,11 @@ schedule_action_t schedule_op_base[NUMBER_OF_FRAMES] = {
   DoNothing,      //EvVersionList
   CopySeToEv,     //SeStatus
   CopyEvToSe,     //EvStatus
-  CopyEvToSe,     //EvPresentCurrentList
+  CopyEvToSe,     //EvPresentCurrents
   DoNothing,      //SeNomVoltages
-  DoNothing,      //SeMaxCurrentList
-  DoNothing,      //EvMaxVoltageList
-  DoNothing,      //EvMinVoltageList
+  DoNothing,      //SeMaxCurrents
+  DoNothing,      //EvMaxVoltages
+  DoNothing,      //EvMinVoltages
   DoNothing,      //EvMaxMinCurrents
   DoNothing,      //CaProperties
   CopySeToEv,     //SeInfoList
@@ -69,11 +69,11 @@ schedule_action_t schedule_op_slash1[NUMBER_OF_FRAMES] = {
   DoNothing,      //EvVersionList
   CopySeToEv,     //SeStatus
   CopyEvToSe,     //EvStatus
-  CopyEvToSe,     //EvPresentCurrentList
+  CopyEvToSe,     //EvPresentCurrents
   DoNothing,      //SeNomVoltages
-  DoNothing,      //SeMaxCurrentList
-  DoNothing,      //EvMaxVoltageList
-  DoNothing,      //EvMinVoltageList
+  DoNothing,      //SeMaxCurrents
+  DoNothing,      //EvMaxVoltages
+  DoNothing,      //EvMinVoltages
   DoNothing,      //EvMaxMinCurrents
   DoNothing,      //CaProperties
   CopySeToEv,     //SeInfoList
@@ -90,11 +90,11 @@ void verify_type_sizes()  {
   printf("%s, %ld\n", FRAME_SIZE(EvVersionList_t));
   printf("%s, %ld\n", FRAME_SIZE(SeStatus_t));
   printf("%s, %ld\n", FRAME_SIZE(EvStatus_t));
-  printf("%s, %ld\n", FRAME_SIZE(EvPresentCurrentList_t));
+  printf("%s, %ld\n", FRAME_SIZE(EvPresentCurrents_t));
   printf("%s, %ld\n", FRAME_SIZE(SeNomVoltages_t));
-  printf("%s, %ld\n", FRAME_SIZE(SeMaxCurrentList_t));
-  printf("%s, %ld\n", FRAME_SIZE(EvMaxVoltageList_t));
-  printf("%s, %ld\n", FRAME_SIZE(EvMinVoltageList_t));
+  printf("%s, %ld\n", FRAME_SIZE(SeMaxCurrents_t));
+  printf("%s, %ld\n", FRAME_SIZE(EvMaxVoltages_t));
+  printf("%s, %ld\n", FRAME_SIZE(EvMinVoltages_t));
   printf("%s, %ld\n", FRAME_SIZE(EvMaxMinCurrents_t));
   printf("%s, %ld\n", FRAME_SIZE(SeInfoList_t));
   printf("%s, %ld\n", FRAME_SIZE(EvInfoList_t));
@@ -105,6 +105,32 @@ void verify_type_sizes()  {
 
 void print_generic_frame(uint8_t frame_number, generic_frame_t * frame)  {
   printf("Frame:%d, %x, %x, %x, %x, %x, %x, %x, %x%c\n", frame_number, frame->data[0], frame->data[1], frame->data[2], frame->data[3], frame->data[4], frame->data[5], frame->data[6], frame->data[7], frame->flag? '*': ' ');
+}
+
+void print_LIN_record(FILE * stream, double time_end, uint8_t frame_number, generic_frame_t * frame)	{
+	uint32_t checksum = 0;
+	uint8_t p0, p1;
+
+	fprintf(stream, "%11.6f Li %2x              Rx     8 ",time_end, frame_number);
+	for (uint8_t i = 0; i<8; i++)	{
+		fprintf(stream, "%02x ", frame->data[i]);
+		checksum += frame->data[i];
+	}
+	p0 = (frame_number & 0b00000001) ^ ((frame_number >> 1) & 0b00000001) ^ ((frame_number >> 2) & 0b00000001) ^ ((frame_number >> 4) & 0b00000001);
+	p1 = !(((frame_number >> 1) & 0b00000001) ^ ((frame_number >> 3) & 0b00000001) ^ ((frame_number >> 4) & 0b00000001) ^ ((frame_number >> 5) & 0b00000001));
+	checksum += ((p1 << 7) | (p0 << 6) | frame_number);
+	checksum = ~(checksum%255) & 0xFF;
+	fprintf(stream, " checksum = %02x   ", checksum);
+	fprintf(stream, "header time =  35, full time = 137  ");
+	fprintf(stream, "SOF = %11.6f   BR = 19200  break = 673700 54250    ",time_end-=0.007073);
+	fprintf(stream, "EOH = %11.6f    EOB =",time_end += 0.001797);
+	time_end += 0.000128;
+	for (uint8_t i = 0; i<8; i++)	{
+		fprintf(stream, " %11.6f ", time_end += 0.000572);
+	}
+	fprintf(stream, "   sim = 0    EOF = %11.6f",time_end += 0.000572);
+	fprintf(stream, "   RBR = 19200  HBR = 19200.000000  HSO = 22785     RSO = 22750     CSM = enhanced\n");
+
 }
 
 void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
@@ -171,12 +197,12 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
       PRINT_FRAME_VARIABLE(EvStatus, EvRequestedCurrentN, d);
       break;
     case 4:
-      EvPresentCurrentList_p = frame;
-      PRINT_FRAME_VARIABLE(EvPresentCurrentList, EvSelectedVersion, d);
-      PRINT_FRAME_VARIABLE(EvPresentCurrentList, EvPresentCurrentL1, d);
-      PRINT_FRAME_VARIABLE(EvPresentCurrentList, EvPresentCurrentL2, d);
-      PRINT_FRAME_VARIABLE(EvPresentCurrentList, EvPresentCurrentL3, d);
-      PRINT_FRAME_VARIABLE(EvPresentCurrentList, EvPresentCurrentN, d);
+      EvPresentCurrents_p = frame;
+      PRINT_FRAME_VARIABLE(EvPresentCurrents, EvSelectedVersion, d);
+      PRINT_FRAME_VARIABLE(EvPresentCurrents, EvPresentCurrentL1, d);
+      PRINT_FRAME_VARIABLE(EvPresentCurrents, EvPresentCurrentL2, d);
+      PRINT_FRAME_VARIABLE(EvPresentCurrents, EvPresentCurrentL3, d);
+      PRINT_FRAME_VARIABLE(EvPresentCurrents, EvPresentCurrentN, d);
       break;
     case 5:
       SeNomVoltages_p = frame;
@@ -186,25 +212,27 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
       PRINT_FRAME_VARIABLE(SeNomVoltages, SeFrequency, d);
       break;
     case 6:
-      SeMaxCurrentList_p = frame;
-      PRINT_FRAME_VARIABLE(SeMaxCurrentList, SeSelectedVersion, d);
-      PRINT_FRAME_VARIABLE(SeMaxCurrentList, SeMaxCurrentL1, d);
-      PRINT_FRAME_VARIABLE(SeMaxCurrentList, SeMaxCurrentL2, d);
-      PRINT_FRAME_VARIABLE(SeMaxCurrentList, SeMaxCurrentL3, d);
-      PRINT_FRAME_VARIABLE(SeMaxCurrentList, SeMaxCurrentN, d);
+      SeMaxCurrents_p = frame;
+      PRINT_FRAME_VARIABLE(SeMaxCurrents, SeSelectedVersion, d);
+      PRINT_FRAME_VARIABLE(SeMaxCurrents, SeMaxCurrentL1, d);
+      PRINT_FRAME_VARIABLE(SeMaxCurrents, SeMaxCurrentL2, d);
+      PRINT_FRAME_VARIABLE(SeMaxCurrents, SeMaxCurrentL3, d);
+      PRINT_FRAME_VARIABLE(SeMaxCurrents, SeMaxCurrentN, d);
+      PRINT_FRAME_VARIABLE(SeMaxCurrents, SeConnectionType, 0X);
       break;
     case 7:
-      EvMaxVoltageList_p = frame;
-      PRINT_FRAME_VARIABLE(EvMaxVoltageList, EvSelectedVersion, d);
-      PRINT_FRAME_VARIABLE(EvMaxVoltageList, EvMaxVoltageL1N, d);
-      PRINT_FRAME_VARIABLE(EvMaxVoltageList, EvMaxVoltageLL, d);
-      PRINT_FRAME_VARIABLE(EvMaxVoltageList, EvFrequencies, d);
+      EvMaxVoltages_p = frame;
+      PRINT_FRAME_VARIABLE(EvMaxVoltages, EvSelectedVersion, d);
+      PRINT_FRAME_VARIABLE(EvMaxVoltages, EvMaxVoltageL1N, d);
+      PRINT_FRAME_VARIABLE(EvMaxVoltages, EvMaxVoltageLL, d);
+      PRINT_FRAME_VARIABLE(EvMaxVoltages, EvFrequencies, d);
       break;
     case 8:
-      EvMinVoltageList_p = frame;
-      PRINT_FRAME_VARIABLE(EvMinVoltageList, EvSelectedVersion, d);
-      PRINT_FRAME_VARIABLE(EvMinVoltageList, EvMinVoltageL1N, d);
-      PRINT_FRAME_VARIABLE(EvMinVoltageList, EvMinVoltageLL, d);
+      EvMinVoltages_p = frame;
+      PRINT_FRAME_VARIABLE(EvMinVoltages, EvSelectedVersion, d);
+      PRINT_FRAME_VARIABLE(EvMinVoltages, EvMinVoltageL1N, d);
+      PRINT_FRAME_VARIABLE(EvMinVoltages, EvMinVoltageLL, d);
+      PRINT_FRAME_VARIABLE(EvMinVoltages, EvConnectionType, 0X);
       break;
     case 9:
       EvMaxMinCurrents_p = frame;

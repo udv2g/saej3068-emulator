@@ -33,7 +33,7 @@ uint8_t pversions_list[] = { PWM_SUPPORT PVER_BASE, SUPPORTED_PVERSIONS 0xFF, 0x
 static uint8_t xmit_page[2]  = {0,0};
 static uint8_t rcvd_pages[2] = {0,0};
 
-uint8_t rcvd_protocol_versions[32] = {0};
+uint8_t rcvd_protocol_versions[2][32] = {0};
 
 void xmit_protocol_version_page(uint8_t ch) {
 #pragma MESSAGE DISABLE C2705 //possible loss of data.is this the flags again? FIXME
@@ -65,14 +65,14 @@ uint8_t parse_protocol_versions(uint8_t ch)    {
   uint8_t chosen_pver = 0xFF;
 
   while (pversions_list[i] != 0xFF) {                                   //check the preference list
-    if (check_rcvd_pvers(pversions_list[i]))  {
+    if (check_rcvd_pvers(ch, pversions_list[i]))  {
       chosen_pver = pversions_list[i];
       break;
     }
     i++;
   }
 
-  if ((chosen_pver == 0xFF) && check_rcvd_pvers(PVER_BASE))  {          //check the base version if no other version was chosen
+  if ((chosen_pver == 0xFF) && check_rcvd_pvers(ch, PVER_BASE))  {          //check the base version if no other version was chosen
     chosen_pver = PVER_BASE;
   }
 
@@ -83,9 +83,9 @@ uint8_t rcv_protocol_version_page(uint8_t ch) {
   uint8_t rcv_page = LR(ch, l_u8, RCV_PVER(VersionPageNumber));
   uint8_t chosen_pver = 0xFF;
 
-  static uint8_t new_rcvd_protocol_versions[32] = {0};
+  static uint8_t new_rcvd_protocol_versions[2][32] = {0};
 
-#define set_rcvd_pver(pver) new_rcvd_protocol_versions[(pver) >> 3] |= (1 << ((pver) & 0b00000111))
+#define set_rcvd_pver(pver) new_rcvd_protocol_versions[ch][(pver) >> 3] |= (1 << ((pver) & 0b00000111))
 
   rcvd_pages[ch]++;
   if (rcv_page == 0) rcvd_pages[ch] = 1; //make sure we can resynchronize
@@ -97,8 +97,8 @@ uint8_t rcv_protocol_version_page(uint8_t ch) {
     set_rcvd_pver(LR(ch, l_u8, RCV_PVER(SupportedVersion5)));
 
   if ((rcv_page + 1 == rcvd_pages[ch]) && (LR(ch, l_u8, RCV_PVER(SupportedVersion5)) == RCV_PVER_EMPTY)) {
-    mem_copy(new_rcvd_protocol_versions, rcvd_protocol_versions, 32);
-    mem_init(new_rcvd_protocol_versions, 32, 0);
+    mem_copy(new_rcvd_protocol_versions[ch], rcvd_protocol_versions[ch], 32);
+    mem_init(new_rcvd_protocol_versions[ch], 32, 0);
 #ifdef EV_CONFIG
     chosen_pver = parse_protocol_versions(ch);
 #else //SE_CONFIG
@@ -126,6 +126,6 @@ bool check_pver_supported(uint8_t pver) {
 }
 
 #pragma INLINE
-bool check_rcvd_pvers(uint8_t pver)	{
-	return !!(rcvd_protocol_versions[pver >> 3] & (1 << (pver & 0b00000111)));
+bool check_rcvd_pvers(uint8_t ch, uint8_t pver)	{
+	return !!(rcvd_protocol_versions[ch][pver >> 3] & (1 << (pver & 0b00000111)));
 }

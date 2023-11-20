@@ -7,6 +7,9 @@
 
 #define NUMBER_OF_FRAMES 17 //64 for complete LIN
 
+#define GENERATE_TEXT_LOG
+#define GENERATE_ASC_LOG
+
 /****<DO NOT MODIFY******/
 #ifndef EV_CONFIG
   #define SE_CONFIG
@@ -21,11 +24,11 @@
   FRAME_ASSIGN(EvVersionList, 1);           \
   FRAME_ASSIGN(SeStatus, 2);                \
   FRAME_ASSIGN(EvStatus, 3);                \
-  FRAME_ASSIGN(EvPresentCurrentList, 4);    \
+  FRAME_ASSIGN(EvPresentCurrents, 4);       \
   FRAME_ASSIGN(SeNomVoltages, 5);           \
-  FRAME_ASSIGN(SeMaxCurrentList, 6);        \
-  FRAME_ASSIGN(EvMaxVoltageList, 7);        \
-  FRAME_ASSIGN(EvMinVoltageList, 8);        \
+  FRAME_ASSIGN(SeMaxCurrents, 6);           \
+  FRAME_ASSIGN(EvMaxVoltages, 7);           \
+  FRAME_ASSIGN(EvMinVoltages, 8);           \
   FRAME_ASSIGN(EvMaxMinCurrents, 9);        \
   FRAME_ASSIGN(SeInfoList, 11);             \
   FRAME_ASSIGN(EvInfoList, 12);             \
@@ -37,11 +40,11 @@
   FRAME_POINTER(EvVersionList);             \
   FRAME_POINTER(SeStatus);                  \
   FRAME_POINTER(EvStatus);                  \
-  FRAME_POINTER(EvPresentCurrentList);      \
+  FRAME_POINTER(EvPresentCurrents);         \
   FRAME_POINTER(SeNomVoltages);             \
-  FRAME_POINTER(SeMaxCurrentList);          \
-  FRAME_POINTER(EvMaxVoltageList);          \
-  FRAME_POINTER(EvMinVoltageList);          \
+  FRAME_POINTER(SeMaxCurrents);             \
+  FRAME_POINTER(EvMaxVoltages);             \
+  FRAME_POINTER(EvMinVoltages);             \
   FRAME_POINTER(EvMaxMinCurrents);          \
   FRAME_POINTER(SeInfoList);                \
   FRAME_POINTER(EvInfoList);                \
@@ -53,7 +56,7 @@ typedef struct {
   uint8_t data[8];
 } generic_frame_t;
 
-//Frame: 0
+//Frame: 0, SeVersionList
 typedef struct {
   uint8_t SeSelectedVersion;
   unsigned int : 1;
@@ -69,7 +72,7 @@ typedef struct {
   uint8_t SeSupportedVersion5;
 } SeVersionList_t;
 
-//Frame: 1
+//Frame: 1, EvVersionList
 typedef struct {
   uint8_t EvSelectedVersion;
   unsigned int EvAwake: 1;
@@ -85,7 +88,7 @@ typedef struct {
   uint8_t EvSupportedVersion5;
 } EvVersionList_t;
 
-//Frame: 2
+//Frame: 2, SeStatus
 typedef struct {
   uint8_t SeSelectedVersion;
   unsigned int : 1;
@@ -100,7 +103,7 @@ typedef struct {
   uint16_t reserved;
 } SeStatus_t;
 
-//Frame: 3
+//Frame: 3, EvStatus
 typedef struct {
   uint8_t EvSelectedVersion;
   unsigned int EvAwake: 1;
@@ -115,7 +118,7 @@ typedef struct {
   uint16_t reserved;
 } EvStatus_t;
 
-//Frame: 4
+//Frame: 4, EvPresentCurrents
 typedef struct {
   uint8_t EvSelectedVersion;
   uint8_t EvPresentCurrentL1;
@@ -124,9 +127,9 @@ typedef struct {
   uint8_t EvPresentCurrentN;
   uint8_t reserved1;
   uint16_t reserved2;
-} EvPresentCurrentList_t;
+} EvPresentCurrents_t;
 
-//Frame: 5
+//Frame: 5, SeNomVoltages
 typedef struct {
   uint8_t SeSelectedVersion;
   uint16_t SeNomVoltageL1N;
@@ -135,36 +138,36 @@ typedef struct {
   uint16_t reserved;
 } __attribute__((__packed__)) SeNomVoltages_t;
 
-//Frame: 6
+//Frame: 6, SeMaxCurrents
 typedef struct {
   uint8_t SeSelectedVersion;
   uint8_t SeMaxCurrentL1;
   uint8_t SeMaxCurrentL2;
   uint8_t SeMaxCurrentL3;
   uint8_t SeMaxCurrentN;
-  uint8_t reserved1;
-  uint16_t reserved2;
-} SeMaxCurrentList_t;
+  uint8_t SeConnectionType;
+  uint16_t reserved;
+} SeMaxCurrents_t;
 
-//Frame: 7
+//Frame: 7, EvMaxVoltages
 typedef struct {
   uint8_t EvSelectedVersion;
   uint16_t EvMaxVoltageL1N;
   uint16_t EvMaxVoltageLL;
   uint8_t EvFrequencies;
   uint16_t reserved;
-} __attribute__((__packed__)) EvMaxVoltageList_t;
+} __attribute__((__packed__)) EvMaxVoltages_t;
 
-//Frame: 8
+//Frame: 8, EvMinVoltages
 typedef struct {
   uint8_t EvSelectedVersion;
   uint16_t EvMinVoltageL1N;
   uint16_t EvMinVoltageLL;
-  uint8_t reserved1;
-  uint16_t reserved2;
-} __attribute__((__packed__)) EvMinVoltageList_t;
+  uint8_t EvConnectionType;
+  uint16_t reserved;
+} __attribute__((__packed__)) EvMinVoltages_t;
 
-//Frame: 9
+//Frame: 9, EvMaxMinCurrents
 typedef struct {
   uint8_t EvSelectedVersion;
   uint8_t EvMaxCurrentL1;
@@ -176,10 +179,9 @@ typedef struct {
   uint8_t EvMinCurrentL3;
 } EvMaxMinCurrents_t;
 
-//Frame: 10
-//CaProperties
+//Frame: 10, CaProperties
 
-//Frame: 11
+//Frame: 11, SeInfoList
 typedef struct {
   uint8_t SeSelectedVersion;
   uint8_t SeInfoPageNumber;
@@ -191,7 +193,7 @@ typedef struct {
   uint8_t SeInfoEntry6;
 } SeInfoList_t;
 
-//Frame: 12
+//Frame: 12, EvInfoList
 typedef struct {
   uint8_t EvSelectedVersion;
   uint8_t EvInfoPageNumber;
@@ -203,7 +205,7 @@ typedef struct {
   uint8_t EvInfoEntry6;
 } EvInfoList_t;
 
-//Frame: 13
+//Frame: 13, StErrorList
 typedef struct {
   uint8_t StSelectedVersion;
   uint8_t StErrorPageNumber;
@@ -215,7 +217,7 @@ typedef struct {
   uint8_t StErrorEntry6;
 } StErrorList_t;
 
-//Frame: 14
+//Frame: 14, EvErrorList
 typedef struct {
   uint8_t EvSelectedVersion;
   uint8_t EvErrorPageNumber;
@@ -227,7 +229,7 @@ typedef struct {
   uint8_t EvErrorEntry6;
 } EvErrorList_t;
 
-//Frame: 15
+//Frame: 15, SeID
 typedef struct {
   uint8_t SeIDPageNumber;
   uint8_t SeIDByteA;
@@ -239,7 +241,7 @@ typedef struct {
   uint8_t SeIDByteG;
 } SeID_t;
 
-//Frame: 16
+//Frame: 16, EvID
 typedef struct {
   uint8_t EvIDPageNumber;
   uint8_t EvIDByteA;
@@ -256,11 +258,11 @@ extern FRAME_POINTER(SeVersionList);
 extern FRAME_POINTER(EvVersionList);
 extern FRAME_POINTER(SeStatus);
 extern FRAME_POINTER(EvStatus);
-extern FRAME_POINTER(EvPresentCurrentList);
+extern FRAME_POINTER(EvPresentCurrents);
 extern FRAME_POINTER(SeNomVoltages);
-extern FRAME_POINTER(SeMaxCurrentList);
-extern FRAME_POINTER(EvMaxVoltageList);
-extern FRAME_POINTER(EvMinVoltageList);
+extern FRAME_POINTER(SeMaxCurrents);
+extern FRAME_POINTER(EvMaxVoltages);
+extern FRAME_POINTER(EvMinVoltages);
 extern FRAME_POINTER(EvMaxMinCurrents);
 extern FRAME_POINTER(SeInfoList);
 extern FRAME_POINTER(EvInfoList);
@@ -268,10 +270,11 @@ extern FRAME_POINTER(SeID);
 extern FRAME_POINTER(EvID);
 
 typedef enum { DoNothing = 0, CopySeToEv, CopyEvToSe } schedule_action_t;
-typedef enum { LI0_LIN_NULL_SCHEDULE = 0, LI0_GOTO_SLEEP_SCHEDULE, LI0_Ver, LI0_Init, LI0_Op, LI0_Op_S1 } schedule_picker_t;
+typedef enum { LI0_LIN_NULL_SCHEDULE = 0, LI0_GOTO_SLEEP_SCHEDULE, LI0_Ver, LI0_Init, LI0_Op, LI0_Op3 } schedule_picker_t;
 
 void verify_type_sizes();
 void print_generic_frame(uint8_t frame_number, generic_frame_t * frame);
+void print_LIN_record(FILE * stream, double time_end, uint8_t frame_number, generic_frame_t * frame);
 void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame);
 void print_all_frames(generic_frame_t * frames);
 void init_all_frames(generic_frame_t * frames);
@@ -317,8 +320,8 @@ void DetermineEvseState(uint8_t ch, DETERMINE_STATE_CODE code);
 #define ANSI_COLOR_CYAN    "\x1b[38;5;123m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-#define CONSOLE_TEXT(command) printf(ANSI_COLOR_YELLOW); command; printf(ANSI_COLOR_RESET)
-#define COMMAND_TEXT(command) printf(ANSI_COLOR_GREEN); command; printf(ANSI_COLOR_RESET)
+#define CONSOLE_TEXT(command) do { printf(ANSI_COLOR_YELLOW); command; printf(ANSI_COLOR_RESET); } while(false)
+#define COMMAND_TEXT(command) do { printf(ANSI_COLOR_GREEN); command; printf(ANSI_COLOR_RESET); } while(false)
 
 #define PrintConsoleString(string,length) CONSOLE_TEXT(printf("%s", string) )
 #define PrintConsoleChar(char) CONSOLE_TEXT( printf("%c", char))

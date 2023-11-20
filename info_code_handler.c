@@ -155,7 +155,8 @@ void parse_info_codes(uint8_t ch) {
   uint8_t i, j;
   uint8_t index;
   uint8_t size     = RCV_BUFFER_SIZE / 6; //we know size is evenly divisible by 6
-  bool valid_codes = FALSE;
+  bool valid_codes = TRUE;
+  static bool prev_valid_codes = FALSE;
   uint8_t new_rcvd_codes[32] = {0};
   uint8_t partial, check_bit;
 
@@ -172,7 +173,7 @@ void parse_info_codes(uint8_t ch) {
     if (info_codes_rcv_buff[ch][index] == RCV_INFOENTRY_EMPTY) break;
   }
 
-  if (valid_codes) {
+  if (valid_codes | prev_valid_codes) {
     for (i = 0; i < 32; i++)	{
       if ((partial = (new_rcvd_codes[i] ^ current_rcvd_codes[i])))	{
         for (j = 0; j < 8; j++)	{
@@ -188,6 +189,8 @@ void parse_info_codes(uint8_t ch) {
       }
     }
   }
+
+  prev_valid_codes = valid_codes;
 
   mem_copy(new_rcvd_codes, current_rcvd_codes, 32);
 }

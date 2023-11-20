@@ -35,15 +35,15 @@ typedef uint32_t l_u32;
 #define l_u8_wr_LI0_SeSelectedVersion(x)  SeVersionList_p->SeSelectedVersion = (x);\
                                           SeStatus_p->SeSelectedVersion = (x);\
                                           SeNomVoltages_p->SeSelectedVersion = (x);\
-                                          SeMaxCurrentList_p->SeSelectedVersion = (x);\
+                                          SeMaxCurrents_p->SeSelectedVersion = (x);\
                                           SeInfoList_p->SeSelectedVersion = (x);\
 //                                          StErrorList_p->StSelectedVersion = (x)
 
 #define l_u8_wr_LI0_EvSelectedVersion(x)  EvVersionList_p->EvSelectedVersion = (x);\
                                           EvStatus_p->EvSelectedVersion = (x);\
-                                          EvPresentCurrentList_p->EvSelectedVersion = (x);\
-                                          EvMaxVoltageList_p->EvSelectedVersion = (x);\
-                                          EvMinVoltageList_p->EvSelectedVersion = (x);\
+                                          EvPresentCurrents_p->EvSelectedVersion = (x);\
+                                          EvMaxVoltages_p->EvSelectedVersion = (x);\
+                                          EvMinVoltages_p->EvSelectedVersion = (x);\
                                           EvMaxMinCurrents_p->EvSelectedVersion = (x);\
                                           EvInfoList_p->EvSelectedVersion = (x);\
 //                                          EvErrorList_p->EvSelectedVersion = (x)
@@ -124,18 +124,18 @@ typedef uint32_t l_u32;
 #define l_flg_tst_LI0_EvStatus_flag()       all_frames[3].flag
 #define l_flg_clr_LI0_EvStatus_flag()       all_frames[3].flag = false
 
-//EvPresentCurrentList, 4
-#define l_u8_rd_LI0_EvSelectedVersionEvPresentCurrentList() EvPresentCurrentList_p->EvSelectedVersion
-#define l_u8_rd_LI0_EvPresentCurrentL1()          EvPresentCurrentList_p->EvPresentCurrentL1
-#define l_u8_wr_LI0_EvPresentCurrentL1(x)         EvPresentCurrentList_p->EvPresentCurrentL1 = (x)
-#define l_u8_rd_LI0_EvPresentCurrentL2()          EvPresentCurrentList_p->EvPresentCurrentL2
-#define l_u8_wr_LI0_EvPresentCurrentL2(x)         EvPresentCurrentList_p->EvPresentCurrentL2 = (x)
-#define l_u8_rd_LI0_EvPresentCurrentL3()          EvPresentCurrentList_p->EvPresentCurrentL3
-#define l_u8_wr_LI0_EvPresentCurrentL3(x)         EvPresentCurrentList_p->EvPresentCurrentL3 = (x)
-#define l_u8_rd_LI0_EvPresentCurrentN()           EvPresentCurrentList_p->EvPresentCurrentN
-#define l_u8_wr_LI0_EvPresentCurrentN(x)          EvPresentCurrentList_p->EvPresentCurrentN = (x)
-#define l_flg_tst_LI0_EvPresentCurrentList_flag() all_frames[4].flag
-#define l_flg_clr_LI0_EvPresentCurrentList_flag() all_frames[4].flag = false
+//EvPresentCurrents, 4
+#define l_u8_rd_LI0_EvSelectedVersionEvPresentCurrents() EvPresentCurrents_p->EvSelectedVersion
+#define l_u8_rd_LI0_EvPresentCurrentL1()          EvPresentCurrents_p->EvPresentCurrentL1
+#define l_u8_wr_LI0_EvPresentCurrentL1(x)         EvPresentCurrents_p->EvPresentCurrentL1 = (x)
+#define l_u8_rd_LI0_EvPresentCurrentL2()          EvPresentCurrents_p->EvPresentCurrentL2
+#define l_u8_wr_LI0_EvPresentCurrentL2(x)         EvPresentCurrents_p->EvPresentCurrentL2 = (x)
+#define l_u8_rd_LI0_EvPresentCurrentL3()          EvPresentCurrents_p->EvPresentCurrentL3
+#define l_u8_wr_LI0_EvPresentCurrentL3(x)         EvPresentCurrents_p->EvPresentCurrentL3 = (x)
+#define l_u8_rd_LI0_EvPresentCurrentN()           EvPresentCurrents_p->EvPresentCurrentN
+#define l_u8_wr_LI0_EvPresentCurrentN(x)          EvPresentCurrents_p->EvPresentCurrentN = (x)
+#define l_flg_tst_LI0_EvPresentCurrents_flag() all_frames[4].flag
+#define l_flg_clr_LI0_EvPresentCurrents_flag() all_frames[4].flag = false
 
 //SeNomVoltages, 5
 #define l_u8_rd_LI0_SeSelectedVersion_SeNomVoltages() SeNomVoltages_p->SeSelectedVersion
@@ -148,38 +148,42 @@ typedef uint32_t l_u32;
 #define l_flg_tst_LI0_SeNomVoltages_flag() all_frames[5].flag
 #define l_flg_clr_LI0_SeNomVoltages_flag() all_frames[5].flag = false
 
-//SeMaxCurrentList, 6
-#define l_u8_rd_LI0_SeSelectedVersion_SeMaxCurrentList() SeMaxCurrentList_p->SeSelectedVersion
-#define l_u8_rd_LI0_SeMaxCurrentL1()          SeMaxCurrentList_p->SeMaxCurrentL1
-#define l_u8_wr_LI0_SeMaxCurrentL1(x)         SeMaxCurrentList_p->SeMaxCurrentL1 = (x)
-#define l_u8_rd_LI0_SeMaxCurrentL2()          SeMaxCurrentList_p->SeMaxCurrentL2
-#define l_u8_wr_LI0_SeMaxCurrentL2(x)         SeMaxCurrentList_p->SeMaxCurrentL2 = (x)
-#define l_u8_rd_LI0_SeMaxCurrentL3()          SeMaxCurrentList_p->SeMaxCurrentL3
-#define l_u8_wr_LI0_SeMaxCurrentL3(x)         SeMaxCurrentList_p->SeMaxCurrentL3 = (x)
-#define l_u8_rd_LI0_SeMaxCurrentN()           SeMaxCurrentList_p->SeMaxCurrentN
-#define l_u8_wr_LI0_SeMaxCurrentN(x)          SeMaxCurrentList_p->SeMaxCurrentN = (x)
-#define l_flg_tst_LI0_SeMaxCurrentList_flag() all_frames[6].flag
-#define l_flg_clr_LI0_SeMaxCurrentList_flag() all_frames[6].flag = false
+//SeMaxCurrents, 6
+#define l_u8_rd_LI0_SeSelectedVersion_SeMaxCurrents() SeMaxCurrents_p->SeSelectedVersion
+#define l_u8_rd_LI0_SeMaxCurrentL1()          SeMaxCurrents_p->SeMaxCurrentL1
+#define l_u8_wr_LI0_SeMaxCurrentL1(x)         SeMaxCurrents_p->SeMaxCurrentL1 = (x)
+#define l_u8_rd_LI0_SeMaxCurrentL2()          SeMaxCurrents_p->SeMaxCurrentL2
+#define l_u8_wr_LI0_SeMaxCurrentL2(x)         SeMaxCurrents_p->SeMaxCurrentL2 = (x)
+#define l_u8_rd_LI0_SeMaxCurrentL3()          SeMaxCurrents_p->SeMaxCurrentL3
+#define l_u8_wr_LI0_SeMaxCurrentL3(x)         SeMaxCurrents_p->SeMaxCurrentL3 = (x)
+#define l_u8_rd_LI0_SeMaxCurrentN()           SeMaxCurrents_p->SeMaxCurrentN
+#define l_u8_wr_LI0_SeMaxCurrentN(x)          SeMaxCurrents_p->SeMaxCurrentN = (x)
+#define l_u8_rd_LI0_SeConnectionType()        SeMaxCurrents_p->SeConnectionType
+#define l_u8_wr_LI0_SeConnectionType(x)       SeMaxCurrents_p->SeConnectionType = (x)
+#define l_flg_tst_LI0_SeMaxCurrents_flag() all_frames[6].flag
+#define l_flg_clr_LI0_SeMaxCurrents_flag() all_frames[6].flag = false
 
-//EvMaxVoltageList, 7
-#define l_u8_rd_LI0_EvSelectedVersion_EvMaxVoltageList() EvMaxVoltageList_p->EvSelectedVersion
-#define l_u16_rd_LI0_EvMaxVoltageL1N()        EvMaxVoltageList_p->EvMaxVoltageL1N
-#define l_u16_wr_LI0_EvMaxVoltageL1N(x)       EvMaxVoltageList_p->EvMaxVoltageL1N = (x)
-#define l_u16_rd_LI0_EvMaxVoltageLL()         EvMaxVoltageList_p->EvMaxVoltageLL
-#define l_u16_wr_LI0_EvMaxVoltageLL(x)        EvMaxVoltageList_p->EvMaxVoltageLL = (x)
-#define l_u8_rd_LI0_EvFrequencies()           EvMaxVoltageList_p->EvFrequencies
-#define l_u8_wr_LI0_EvFrequencies(x)          EvMaxVoltageList_p->EvFrequencies = (x)
-#define l_flg_tst_LI0_EvMaxVoltageList_flag() all_frames[7].flag
-#define l_flg_clr_LI0_EvMaxVoltageList_flag() all_frames[7].flag = false
+//EvMaxVoltages, 7
+#define l_u8_rd_LI0_EvSelectedVersion_EvMaxVoltages() EvMaxVoltages_p->EvSelectedVersion
+#define l_u16_rd_LI0_EvMaxVoltageL1N()        EvMaxVoltages_p->EvMaxVoltageL1N
+#define l_u16_wr_LI0_EvMaxVoltageL1N(x)       EvMaxVoltages_p->EvMaxVoltageL1N = (x)
+#define l_u16_rd_LI0_EvMaxVoltageLL()         EvMaxVoltages_p->EvMaxVoltageLL
+#define l_u16_wr_LI0_EvMaxVoltageLL(x)        EvMaxVoltages_p->EvMaxVoltageLL = (x)
+#define l_u8_rd_LI0_EvFrequencies()           EvMaxVoltages_p->EvFrequencies
+#define l_u8_wr_LI0_EvFrequencies(x)          EvMaxVoltages_p->EvFrequencies = (x)
+#define l_flg_tst_LI0_EvMaxVoltages_flag() all_frames[7].flag
+#define l_flg_clr_LI0_EvMaxVoltages_flag() all_frames[7].flag = false
 
-//EvMinVoltageList, 8
-#define l_u8_rd_LI0_EvSelectedVersion_EvMinVoltageList() EvMinVoltageList_p->EvSelectedVersion
-#define l_u16_rd_LI0_EvMinVoltageL1N()        EvMinVoltageList_p->EvMinVoltageL1N
-#define l_u16_wr_LI0_EvMinVoltageL1N(x)       EvMinVoltageList_p->EvMinVoltageL1N = (x)
-#define l_u16_rd_LI0_EvMinVoltageLL()         EvMinVoltageList_p->EvMinVoltageLL
-#define l_u16_wr_LI0_EvMinVoltageLL(x)        EvMinVoltageList_p->EvMinVoltageLL = (x)
-#define l_flg_tst_LI0_EvMinVoltageList_flag() all_frames[8].flag
-#define l_flg_clr_LI0_EvMinVoltageList_flag() all_frames[8].flag = false
+//EvMinVoltages, 8
+#define l_u8_rd_LI0_EvSelectedVersion_EvMinVoltages() EvMinVoltages_p->EvSelectedVersion
+#define l_u16_rd_LI0_EvMinVoltageL1N()        EvMinVoltages_p->EvMinVoltageL1N
+#define l_u16_wr_LI0_EvMinVoltageL1N(x)       EvMinVoltages_p->EvMinVoltageL1N = (x)
+#define l_u16_rd_LI0_EvMinVoltageLL()         EvMinVoltages_p->EvMinVoltageLL
+#define l_u16_wr_LI0_EvMinVoltageLL(x)        EvMinVoltages_p->EvMinVoltageLL = (x)
+#define l_u8_rd_LI0_EvConnectionType()        EvMinVoltages_p->EvConnectionType
+#define l_u8_wr_LI0_EvConnectionType(x)       EvMinVoltages_p->EvConnectionType = (x)
+#define l_flg_tst_LI0_EvMinVoltages_flag() all_frames[8].flag
+#define l_flg_clr_LI0_EvMinVoltages_flag() all_frames[8].flag = false
 
 //EvMaxMinCurrents, 9
 #define l_u8_rd_LI0_EvSelectedVersion_EvMaxMinCurrents() EvMaxMinCurrents_p->EvSelectedVersion
@@ -296,7 +300,7 @@ typedef uint32_t l_u32;
 #define l_flg_clr_LI0_SeID_flag()          all_frames[15].flag = false
 #define l_flg_tst_LI0_SeID_flag()          all_frames[15].flag
 
-//EvIDt, 16
+//EvID, 16
 #define l_u8_rd_LI0_EvIDPageNumber()        EvID_p->EvIDPageNumber
 #define l_u8_wr_LI0_EvIDPageNumber(x)       EvID_p->EvIDPageNumber = (x)
 #define l_u8_rd_LI0_EvIDByteA()             EvID_p->EvIDByteA
@@ -322,8 +326,6 @@ typedef uint32_t l_u32;
 #define l_ifc_init(it)  (void)0
 
 //FIXME
-#define schedule_if_unscheduled(a,b,c) (void)0
-#define unschedule(a)                  (void)0
 
 #define TRUE  true
 #define FALSE false
@@ -347,41 +349,34 @@ typedef enum {continueOnLIN, startLIN, stopLIN} SCHEDULE_PICKER_EVENTS;
 
 enum {FiftyHz = 1, SixtyHz, FiftyOrSixtyHz};
 
-#define  RTI_TICKS_PER_LINCP_LOOP  20             //  How often the LIN-CP state machine is serviced
+//If single phase, use the "t" value, else use the "f" value.  "t" value should be 0 or the type-appropriate Not Available value as needed.
+#if defined(TYPE_I_COUPLER) || defined(SINGLE_PHASE)
+  #define SP(f,t) (t)
+#else 
+  #define SP(f,t) (f)
+#endif
 
-//9.3 -- Table 16
-#define  T_SESTART     RTI_TICKS_PER_SECOND/2     //  9.4.1.3                       SE max time to start LIN Schedule
-#define  T_EVSTART     1*RTI_TICKS_PER_SECOND     //  9.4.1.4                       EV max time to start responding
-#define  T_PWM         1*RTI_TICKS_PER_SECOND     //  9.5.4.1                       SE max time to establish LIN-CP
-#define  T_EVCLOSE     3*RTI_TICKS_PER_SECOND     //  9.7.2.3                       EV max time to close S2
-#define  T_SECLOSE     3*RTI_TICKS_PER_SECOND     //  9.7.2.4                       SE max time to close the Contactor
-#define  T_SEADAPT     10*RTI_TICKS_PER_SECOND    //  9.7.3.2                       SE max time to adapt SeAvailableCurrents to external limit (for example, energy management system)
-#define  T_EVADAPT     5*RTI_TICKS_PER_SECOND     //  9.7.3.5                       EV max time to adapt load current to SeAvailableCurrents
-#define  T_SEOPEN      3*RTI_TICKS_PER_SECOND     //  9.7.4.2   10.7.2.2            SE max time to open the Contactor
-#define  T_RAMPDOWN    6*RTI_TICKS_PER_SECOND     //  9.7.5.1   10.2.2.1            SE min time to wait before interrupting supply
-#define  T_EVOPEN      3*RTI_TICKS_PER_SECOND     //  9.7.5.2   9.8.2.1   10.7.1.1  EV max time to open S2
-#define  T_UNLOCK      3*RTI_TICKS_PER_SECOND     //  9.8.1.1   9.8.2.3             EV max time to unlock Inlet
-#define  T_VER         5*RTI_TICKS_PER_SECOND     //  10.3.1.1  10.3.2.1            SE and EV timeout before Version selection fails
-#define  T_INIT        5*RTI_TICKS_PER_SECOND     //  10.4.1.1  10.4.2.1            SE and EV timeout before initialization fails
-#define  T_NOLIN       2*RTI_TICKS_PER_SECOND     //  10.7.1.1  10.7.1.2            EV min time to wait before opening S2, no LIN Headers
-                                                  //  10.7.2.1  10.7.2.2            SE min time to wait before opening the Contactor, no LIN Responses
-#define  T_SE_12       RTI_TICKS_PER_SECOND/10    //  10.8.4.1                      SE max time to open the Contactor, SE detects CP Level 12
-
-#define  L_SESTART     T_SESTART /RTI_TICKS_PER_LINCP_LOOP
-#define  L_EVSTART     T_EVSTART /RTI_TICKS_PER_LINCP_LOOP
-#define  L_PWM         T_PWM     /RTI_TICKS_PER_LINCP_LOOP
-#define  L_EVCLOSE     T_EVCLOSE /RTI_TICKS_PER_LINCP_LOOP
-#define  L_SECLOSE     T_SECLOSE /RTI_TICKS_PER_LINCP_LOOP
-#define  L_SEADAPT     T_SEADAPT /RTI_TICKS_PER_LINCP_LOOP
-#define  L_EVADAPT     T_EVADAPT /RTI_TICKS_PER_LINCP_LOOP
-#define  L_SEOPEN      T_SEOPEN  /RTI_TICKS_PER_LINCP_LOOP
-#define  L_RAMPDOWN    T_RAMPDOWN/RTI_TICKS_PER_LINCP_LOOP
-#define  L_EVOPEN      T_EVOPEN  /RTI_TICKS_PER_LINCP_LOOP
-#define  L_UNLOCK      T_UNLOCK  /RTI_TICKS_PER_LINCP_LOOP
-#define  L_VER         T_VER     /RTI_TICKS_PER_LINCP_LOOP
-#define  L_INIT        T_INIT    /RTI_TICKS_PER_LINCP_LOOP
-#define  L_NOLIN       T_NOLIN   /RTI_TICKS_PER_LINCP_LOOP
-#define  L_SE_12       T_SE_12   /RTI_TICKS_PER_LINCP_LOOP
+//9.3 -- Table 16 --- updated to SAE J3068 202207 May 9, 23
+#define  T_SESTART     RTI_TICKS_PER_SECOND/2     //  R#:9.4.1.2                 SE max time to start LIN Schedule
+#define  T_EVSTART     1*RTI_TICKS_PER_SECOND     //  R#:9.4.1.3                 EV max time to start responding
+#define  T_PWM         (1*RTI_TICKS_PER_SECOND\
+                       +RTI_TICKS_PER_SECOND/10)  //  R#:9.5.4.1                 SE max time to establish LIN-CP
+#define  T_EVCLOSE     3*RTI_TICKS_PER_SECOND     //  R#:9.7.2.4                 EV max time to close S2
+#define  T_SECLOSE     3*RTI_TICKS_PER_SECOND     //  R#:9.7.2.5                 SE max time to close the Contactor
+#define  T_GLITCH      1*RTI_TICKS_PER_SECOND     //  R#:9.7.2.6   R#:9.7.2.7    SE or EV time to ignore CP level glitch
+                                                  //  R#:9.7.2.8   R#:10.8.5.2   EV time to ignore prox voltage or lock glitch
+#define  T_SEADAPT     10*RTI_TICKS_PER_SECOND    //  R#:9.7.3.2                 SE max time to adapt SeAvailableCurrents to external limit (for example, energy management system)
+#define  T_EVADAPT     5*RTI_TICKS_PER_SECOND     //  R#:9.7.3.6                 EV max time to adapt load current to SeAvailableCurrents
+#define  T_SEOPEN      3*RTI_TICKS_PER_SECOND     //  R#:9.7.4.2   R#:10.7.2.2   SE max time to open the Contactor
+#define  T_RAMPDOWN    6*RTI_TICKS_PER_SECOND     //  R#:9.7.5.1   R#:10.2.1.1   SE min time to wait before interrupting supply
+#define  T_EVOPEN      3*RTI_TICKS_PER_SECOND     //  R#:9.7.5.2   R#:10.7.1.1   EV max time to open S2
+#define  T_UNLOCK      3*RTI_TICKS_PER_SECOND     //  R#:9.8.1.1   R#:9.8.2.2    EV max time to unlock Inlet
+#define  T_VER         5*RTI_TICKS_PER_SECOND     //  R#:10.3.1.1  R#:10.3.2.1   SE and EV timeout before Version selection fails
+#define  T_INIT        5*RTI_TICKS_PER_SECOND     //  R#:10.4.1.1  R#:10.4.2.1   SE and EV timeout before initialization fails
+#define  T_NOLIN       2*RTI_TICKS_PER_SECOND     //  R#:10.7.1.1  R#:10.7.1.2   EV min time to wait before opening S2, no LIN Headers
+                                                  //  R#:10.7.2.1  R#:10.7.2.2   SE min time to wait before opening the Contactor, no LIN Responses
+#define  T_SE_12       RTI_TICKS_PER_SECOND/10    //  R#:10.8.4.1                SE max time to open the Contactor, SE detects CP Level 12
+#define  T_EV_unlocked RTI_TICKS_PER_SECOND/10    //  R#:10.8.5.1                EV max time to stop drawing current if unexpectedly unlocked.
 
 void InitializeLINCP(void);
 void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessage);
@@ -394,68 +389,6 @@ typedef struct {
   uint8_t C4_N;
 } three_phase_currents_t;
 
-//config.h
-#define PWM_CHARGE_ENABLE
-
-#define INITIALIZATION_DELAY 10000
-#define RTI_TICKS_PER_SECOND 926ul  //1000/1.08ms  This still runs long for some reason  FIXME?
-#define LOCK_CHECK_DELAY     250
-#define CONNECTION_CLEAR_TIME 2*60*RTI_TICKS_PER_SECOND   //Time between connections to assume a new connection, not a restart (EV only)
-
-/*<Ratings*/
-//Voltages are *10, Currents are *1
-#define MAX_RATED_CURRENT 80
-
-//Supported Protocol Versions.  2 is always supported, 0 is controlled by PWM_CHARGE_ENABLE
-//Order controls preference for EV, 2 is always last
-#define PVER_PWM     0
-#define PVER_BASE    2
-#define PVER_SLASH_1 3
-#define PVER_SLASH_2 252
-#define PVER_TEST_A  4
-#define PVER_TEST_B  5
-#define PVER_TEST_C  6
-#define PVER_TEST_D  7
-#define PVER_TEST_E  8
-#define PVER_TEST_F  9
-#define PVER_TEST_G  10
-#define PVER_TEST_H  11
-
-//#define SUPPORTED_PVERSIONS  PVER_SLASH_2, PVER_TEST_H, PVER_TEST_G, PVER_TEST_E, PVER_TEST_F, PVER_TEST_A, PVER_TEST_B, PVER_TEST_C, PVER_TEST_D, PVER_SLASH_1,
-#define SUPPORTED_PVERSIONS  PVER_SLASH_1,
-//#define SUPPORTED_PVERSIONS
-
-//EVSE
-#define EVSE_INCREASE_SET_C_WAIT_PERIOD 100
-#define EVSE_DECREASE_SET_C_WAIT_PERIOD 10
-#define EVSE_MIN_C 6
-#define EVSE_MAX_C 30
-#define EVSE_DEFAULT_C 30
-#define EVSE_MIN_D 6
-#define EVSE_MAX_D 30
-#define EVSE_DEFAULT_D 30
-#define OVER_CURRENT_DEFAULT 112
-#define OVER_CURRENT_MIN 110
-#define OVER_CURRENT_MAX 125
-#define EVSE_MAIN_LOOP     1000
-
-//SE Settings
-#define SE_FREQUENCY SixtyHz
-#define SE_NOMINAL_VOLTAGE_LL 2080
-#define SE_NOMINAL_VOLTAGE_LN 1200
-#define SE_MAX_CURRENT_L 16
-#define SE_MAX_CURRENT_N 16
-
-//EV settings
-#define EV_FREQUENCIES FiftyOrSixtyHz
-#define EV_MAX_VOLTAGE_LL 480*11    //+10%
-#define EV_MAX_VOLTAGE_LN 277*11
-#define EV_MIN_VOLTAGE_LL 208*9     //-10%
-#define EV_MIN_VOLTAGE_LN 120*9
-#define EV_MAX_CURRENT_L 32
-#define EV_MAX_CURRENT_N 32
-#define EV_MIN_CURRENT_L 6 
-/*Rating>*/
-
+#include "config.h"
 
 #endif
