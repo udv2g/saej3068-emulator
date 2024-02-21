@@ -1,4 +1,4 @@
-function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_define)
+function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_define, FPTR)
 
 	first = true;
 	pages_sent = 1; %include page 0 in page count
@@ -78,7 +78,7 @@ function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_de
 								fdisp(file_handle, "      copy_buffer_data(source_ptr, dest_ptr, copy_size, false); //call copy on previous string data");
 							end
 							first_string = false;
-							fprintf(file_handle, "      source_ptr = (uint8_t *) %s",["(act_", {"ids", "data"}{stage +1}, "_xmit[ch]->s).", array{page}(index).label]);
+							fprintf(file_handle, "      source_ptr = (uint8_t %s) %s", FPTR, ["(act_", {"ids", "data"}{stage +1}, "_xmit[ch]->s).", array{page}(index).label]);
 							if string_position ~= 0
 								fprintf(file_handle, " + %d",string_position);
 							end

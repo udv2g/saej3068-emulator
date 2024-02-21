@@ -1,4 +1,4 @@
-function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print_command, capl)
+function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print_command, FPTR, capl)
 
 	if capl
 		u8t = 'byte';
@@ -15,7 +15,7 @@ function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print
 		u32t = 'uint32_t';
 		buffer_prefix = '';
 		status_cast = '';
-		switch_variable = sprintf('LR(ch, l_u8, %sIDPageNumber)', [toupper(ident)(1), ident(2)]);
+		switch_variable = sprintf('LR(ch, l_u8, %sIDPage)', [toupper(ident)(1), ident(2)]);
 		structure = {'(act_ids_rcv[ch]->v).','(act_ids_rcv[ch]->s).','(act_data_rcv[ch]->v).','(act_data_rcv[ch]->s).'};	%id-v,id-s,data-v,data-s		stage*2 + (1 for v, 2 for s)
 		ch_sel = '[ch]';
 	end
@@ -135,7 +135,7 @@ function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print
 							end
 							first_string = false;
 							if	~capl
-								fprintf(file_handle, "      dest_ptr = (%s *) %s", u8t, [structure{stage*2 + 2}, array{page}(index).label]);
+								fprintf(file_handle, "      dest_ptr = (%s %s) %s", u8t, FPTR, [structure{stage*2 + 2}, array{page}(index).label]);
 							end
 							if string_position ~= 0
 								if ~capl

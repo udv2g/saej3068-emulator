@@ -45,7 +45,8 @@
 #define CONNTP_TYPE_2         2
 #define CONNTP_CCS_1          3
 #define CONNTP_CCS_2          4
-#define CONNTP_GB_T           5
+#define CONNTP_3400           5
+#define CONNTP_GB_T           6
 #define CONNTP_ERROR          0xFE
 #define CONNTP_NOTSPECIFIED   0xFF
 

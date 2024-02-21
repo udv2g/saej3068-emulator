@@ -281,8 +281,8 @@ typedef uint32_t l_u32;
 #define l_flg_clr_LI0_EvErrorList_flag()    all_frames[14].flag = false
 
 //SeID, 15
-#define l_u8_rd_LI0_SeIDPageNumber()       SeID_p->SeIDPageNumber
-#define l_u8_wr_LI0_SeIDPageNumber(x)      SeID_p->SeIDPageNumber = (x)
+#define l_u8_rd_LI0_SeIDPage()             SeID_p->SeIDPage
+#define l_u8_wr_LI0_SeIDPage(x)            SeID_p->SeIDPage = (x)
 #define l_u8_rd_LI0_SeIDByteA()            SeID_p->SeIDByteA
 #define l_u8_wr_LI0_SeIDByteA(x)           SeID_p->SeIDByteA = (x)
 #define l_u8_rd_LI0_SeIDByteB()            SeID_p->SeIDByteB
@@ -301,8 +301,8 @@ typedef uint32_t l_u32;
 #define l_flg_tst_LI0_SeID_flag()          all_frames[15].flag
 
 //EvID, 16
-#define l_u8_rd_LI0_EvIDPageNumber()        EvID_p->EvIDPageNumber
-#define l_u8_wr_LI0_EvIDPageNumber(x)       EvID_p->EvIDPageNumber = (x)
+#define l_u8_rd_LI0_EvIDPage()              EvID_p->EvIDPage
+#define l_u8_wr_LI0_EvIDPage(x)             EvID_p->EvIDPage = (x)
 #define l_u8_rd_LI0_EvIDByteA()             EvID_p->EvIDByteA
 #define l_u8_wr_LI0_EvIDByteA(x)            EvID_p->EvIDByteA = (x)
 #define l_u8_rd_LI0_EvIDByteB()             EvID_p->EvIDByteB

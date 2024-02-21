@@ -231,7 +231,7 @@ typedef struct {
 
 //Frame: 15, SeID
 typedef struct {
-  uint8_t SeIDPageNumber;
+  uint8_t SeIDPage;
   uint8_t SeIDByteA;
   uint8_t SeIDByteB;
   uint8_t SeIDByteC;
@@ -243,7 +243,7 @@ typedef struct {
 
 //Frame: 16, EvID
 typedef struct {
-  uint8_t EvIDPageNumber;
+  uint8_t EvIDPage;
   uint8_t EvIDByteA;
   uint8_t EvIDByteB;
   uint8_t EvIDByteC;

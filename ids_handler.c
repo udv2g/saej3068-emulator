@@ -510,16 +510,16 @@ void ids_init(uint8_t ch) {
 
 #define LC_ID_STATUS(ch)           ev_id_status[ch]
 #define RM_ID_STATUS(ch)           se_id_status[ch]
-#define READ_LC_PAGE_NUMBER(ch)    LR(ch, l_u8, EvIDPageNumber)
-#define READ_RM_PAGE_NUMBER(ch)    LR(ch, l_u8, SeIDPageNumber)
+#define READ_LC_PAGE_NUMBER(ch)    LR(ch, l_u8, EvIDPage)
+#define READ_RM_PAGE_NUMBER(ch)    LR(ch, l_u8, SeIDPage)
 #define READ_RM_BYTE_A(ch)         LR(ch, l_u8, SeIDByteA)
 
 #else
 
 #define LC_ID_STATUS(ch)           se_id_status[ch]
 #define RM_ID_STATUS(ch)           ev_id_status[ch]
-#define READ_LC_PAGE_NUMBER(ch)    LR(ch, l_u8, SeIDPageNumber)
-#define READ_RM_PAGE_NUMBER(ch)    LR(ch, l_u8, EvIDPageNumber)
+#define READ_LC_PAGE_NUMBER(ch)    LR(ch, l_u8, SeIDPage)
+#define READ_RM_PAGE_NUMBER(ch)    LR(ch, l_u8, EvIDPage)
 #define READ_RM_BYTE_A(ch)         LR(ch, l_u8, EvIDByteA)
 
 #endif
@@ -639,18 +639,18 @@ bool id_parse(uint8_t ch) {
   buffer[6] = LR(ch, l_u8, SeIDByteG);
 
   //printf("-->%c%c\n", buffer[0], buffer[1]);
-  //printf("page:%d\n", l_u8_rd_LI0_EvIDPageNumber());
+  //printf("page:%d\n", l_u8_rd_LI0_EvIDPage());
 
   pgs_read[ch]++;
 
   ///>ev_id_parse
-  switch(LR(ch, l_u8, SeIDPageNumber)) {
+  switch(LR(ch, l_u8, SeIDPage)) {
     case 0:
       pgs_to_read[ch] = buffer[1];
       se_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-      clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+        clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 1:
       dest_ptr = (uint8_t *) (act_ids_rcv[ch]->s).SeEVSEID;
@@ -778,7 +778,7 @@ bool id_parse(uint8_t ch) {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
   }
 
-  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, SeIDPageNumber) == last_pg[ch]))  {
+  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, SeIDPage) == last_pg[ch]))  {
     temp_ptr = inact_ids_rcv[ch];            //swap id rcv buffers
     inact_ids_rcv[ch] = act_ids_rcv[ch];
     act_ids_rcv[ch] = temp_ptr;
@@ -917,7 +917,7 @@ void id_xmit(uint8_t ch, uint8_t page){
 
   invalidate_bytes_page(buffer, mask);
 
-  LW(ch, l_u8, EvIDPageNumber, page);
+  LW(ch, l_u8, EvIDPage, page);
   LW(ch, l_u8, EvIDByteA, buffer[0]);
   LW(ch, l_u8, EvIDByteB, buffer[1]);
   LW(ch, l_u8, EvIDByteC, buffer[2]);
@@ -1080,7 +1080,7 @@ void data_xmit(uint8_t ch, uint8_t page) {
 
   invalidate_bytes_page(buffer, mask);
 
-  LW(ch, l_u8, EvIDPageNumber, page);
+  LW(ch, l_u8, EvIDPage, page);
   LW(ch, l_u8, EvIDByteA, buffer[0]);
   LW(ch, l_u8, EvIDByteB, buffer[1]);
   LW(ch, l_u8, EvIDByteC, buffer[2]);
@@ -1114,13 +1114,13 @@ void data_parse(uint8_t ch)  {
   pgs_read[ch]++;
 
   ///>ev_data_parse
-  switch(LR(ch, l_u8, SeIDPageNumber)) {
+  switch(LR(ch, l_u8, SeIDPage)) {
     case 0:
       pgs_to_read[ch] = buffer[1];
       se_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-      clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+        clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 97:
       (act_data_rcv[ch]->v).SeAmbientTemp = ((uint16_t)buffer[1] << 8) | ((uint16_t)buffer[0]);
@@ -1159,7 +1159,7 @@ void data_parse(uint8_t ch)  {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
   }
 
-  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, EvIDPageNumber) == last_pg[ch]))  {
+  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, EvIDPage) == last_pg[ch]))  {
     temp_ptr = inact_data_rcv[ch];           //swap data rcv buffers
     inact_data_rcv[ch] = act_data_rcv[ch];
     act_data_rcv[ch] = temp_ptr;
@@ -1189,18 +1189,18 @@ bool id_parse(uint8_t ch) {
   buffer[6] = LR(ch, l_u8, EvIDByteG);
 
   //printf("-->%c%c\n", buffer[0], buffer[1]);
-  //printf("page:%d\n", l_u8_rd_LI0_EvIDPageNumber());
+  //printf("page:%d\n", l_u8_rd_LI0_EvIDPage());
 
   pgs_read[ch]++;
 
   ///>se_id_parse
-  switch(LR(ch, l_u8, EvIDPageNumber)) {
+  switch(LR(ch, l_u8, EvIDPage)) {
     case 0:
       pgs_to_read[ch] = buffer[1];
       ev_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-      clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+        clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 1:
       dest_ptr = (uint8_t *) (act_ids_rcv[ch]->s).EvVIN;
@@ -1311,7 +1311,7 @@ bool id_parse(uint8_t ch) {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
   }
 
-  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, EvIDPageNumber) == last_pg[ch]))  {
+  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, EvIDPage) == last_pg[ch]))  {
     temp_ptr = inact_ids_rcv[ch];            //swap id rcv buffers
     inact_ids_rcv[ch] = act_ids_rcv[ch];
     act_ids_rcv[ch] = temp_ptr;
@@ -1466,7 +1466,7 @@ void id_xmit(uint8_t ch, uint8_t page){
 
   invalidate_bytes_page(buffer, mask);
 
-  LW(ch, l_u8, SeIDPageNumber, page);
+  LW(ch, l_u8, SeIDPage, page);
   LW(ch, l_u8, SeIDByteA, buffer[0]);
   LW(ch, l_u8, SeIDByteB, buffer[1]);
   LW(ch, l_u8, SeIDByteC, buffer[2]);
@@ -1530,7 +1530,7 @@ void data_xmit(uint8_t ch, uint8_t page) {
 
   invalidate_bytes_page(buffer, mask);
 
-  LW(ch, l_u8, SeIDPageNumber, page);
+  LW(ch, l_u8, SeIDPage, page);
   LW(ch, l_u8, SeIDByteA, buffer[0]);
   LW(ch, l_u8, SeIDByteB, buffer[1]);
   LW(ch, l_u8, SeIDByteC, buffer[2]);
@@ -1564,13 +1564,13 @@ void data_parse(uint8_t ch)  {
   pgs_read[ch]++;
 
   ///>se_data_parse
-  switch(LR(ch, l_u8, EvIDPageNumber)) {
+  switch(LR(ch, l_u8, EvIDPage)) {
     case 0:
       pgs_to_read[ch] = buffer[1];
       ev_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-      clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+        clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 97:
       (act_data_rcv[ch]->v).EvOdometer = ((uint32_t)buffer[3] << 24) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[1] << 8) | ((uint32_t)buffer[0]);
@@ -1702,7 +1702,7 @@ void data_parse(uint8_t ch)  {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
   }
 
-  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, SeIDPageNumber) == last_pg[ch]))  {
+  if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, SeIDPage) == last_pg[ch]))  {
     temp_ptr = inact_data_rcv[ch];           //swap data rcv buffers
     inact_data_rcv[ch] = act_data_rcv[ch];
     act_data_rcv[ch] = temp_ptr;

@@ -1,5 +1,11 @@
-function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=false, interactive=false)
+function gen_field_code(ods_in, c_in, c_out, print_command='commented', rpage=false, capl=false, interactive=false)
 	gen_values = strcmp(print_command, 'yes');
+
+	if rpage
+		FPTR = "* far ";
+	else
+		FPTR = "*";
+	end
 
 	[ev_numarr, ev_txtarr, ev_rawarr, ev_limits] = xlsread (ods_in, 'EvID');
 	[ev_defined_pages, ev_array] = gen_page_array(ev_rawarr, 'Ev');
@@ -122,63 +128,159 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 					fprintf(out_hdl, "} se_data_t;\n\n");
 
 					fprintf(out_hdl, "#ifdef EV_CONFIG\n");
-					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_1_A = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_2_A = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_1_B = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_2_B = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_data_t data_xmit_buff_1_A = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_data_t data_xmit_buff_2_A = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_data_t data_xmit_buff_1_B = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_data_t data_xmit_buff_2_B = {{\n");
-					fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  ev_ids_t *act_ids_xmit[2], *inact_ids_xmit[2];\n");
-					fprintf(out_hdl, "  se_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B, *act_ids_rcv[2], *inact_ids_rcv[2];\n");
-					fprintf(out_hdl, "  ev_data_t *act_data_xmit[2], *inact_data_xmit[2];\n");
-					fprintf(out_hdl, "  se_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B, *act_data_rcv[2], *inact_data_rcv[2];\n");
+					if rpage
+						fprintf(out_hdl, "#pragma DATA_SEG __RPAGE_SEG PAGED_RAM\n");
+					end
+					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_1_A");
+					if ~isempty(ev_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_2_A");
+					if ~isempty(ev_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_1_B");
+					if ~isempty(ev_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_ids_t ids_xmit_buff_2_B");
+					if ~isempty(ev_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_data_t data_xmit_buff_1_A");
+					if ~isempty(ev_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_data_t data_xmit_buff_2_A");
+					if ~isempty(ev_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_data_t data_xmit_buff_1_B");
+					if ~isempty(ev_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_data_t data_xmit_buff_2_B");
+					if ~isempty(ev_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", ev_defines{3,2}); %EV xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B;\n");
+					fprintf(out_hdl, "  se_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B;\n");
+					if rpage
+						fprintf(out_hdl, "#pragma DATA_SEG DEFAULT\n\n");
+					end
+					fprintf(out_hdl, ["  ev_ids_t ", FPTR, "act_ids_xmit[2], ", FPTR, "inact_ids_xmit[2];\n"]);
+					fprintf(out_hdl, ["  ev_data_t ", FPTR, "act_data_xmit[2], ", FPTR, "inact_data_xmit[2];\n"]);
+					fprintf(out_hdl, ["  se_ids_t ", FPTR, "act_ids_rcv[2], ", FPTR, "inact_ids_rcv[2];\n"]);
+					fprintf(out_hdl, ["  se_data_t ", FPTR, "act_data_rcv[2], ", FPTR, "inact_data_rcv[2];\n"]);
 					fprintf(out_hdl, "#else\n");
-					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_1_A = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_2_A = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_1_B = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_2_B = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_data_t data_xmit_buff_1_A = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_data_t data_xmit_buff_2_A = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_data_t data_xmit_buff_1_B = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_data_t data_xmit_buff_2_B = {{\n");
-					fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
-					fprintf(out_hdl, "  }};\n");
-					fprintf(out_hdl, "  se_ids_t *act_ids_xmit[2], *inact_ids_xmit[2];\n");
-					fprintf(out_hdl, "  ev_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B, *act_ids_rcv[2], *inact_ids_rcv[2];\n");
-					fprintf(out_hdl, "  se_data_t *act_data_xmit[2], *inact_data_xmit[2];\n");
-					fprintf(out_hdl, "  ev_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B, *act_data_rcv[2], *inact_data_rcv[2];\n");
+					if rpage
+						fprintf(out_hdl, "#pragma DATA_SEG __RPAGE_SEG PAGED_RAM\n");
+					end
+					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_1_A");
+					if ~isempty(se_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_2_A");
+					if ~isempty(se_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_1_B");
+					if ~isempty(se_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_ids_t ids_xmit_buff_2_B");
+					if ~isempty(se_defines{3,1})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,1}); %EV xmit ID strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_data_t data_xmit_buff_1_A");
+					if ~isempty(se_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_data_t data_xmit_buff_2_A");
+					if ~isempty(se_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_data_t data_xmit_buff_1_B");
+					if ~isempty(se_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  se_data_t data_xmit_buff_2_B");
+					if ~isempty(se_defines{3,2})
+						fprintf(out_hdl, " = {{\n");
+						fprintf(out_hdl, "%s", se_defines{3,2}); %SE xmit DATA strings
+						fprintf(out_hdl, "  }};\n");
+					else
+						fprintf(out_hdl, ";\n");
+					end
+					fprintf(out_hdl, "  ev_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B;\n");
+					fprintf(out_hdl, "  ev_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B;\n");
+					if rpage
+						fprintf(out_hdl, "#pragma DATA_SEG DEFAULT\n\n");
+					end
+					fprintf(out_hdl, ["  se_ids_t ", FPTR, "act_ids_xmit[2], ", FPTR, "inact_ids_xmit[2];\n"]);
+					fprintf(out_hdl, ["  se_data_t ", FPTR, "act_data_xmit[2], ", FPTR, "inact_data_xmit[2];\n"]);
+					fprintf(out_hdl, ["  ev_ids_t ", FPTR, "act_ids_rcv[2], ", FPTR, "inact_ids_rcv[2];\n"]);
+					fprintf(out_hdl, ["  ev_data_t ", FPTR, "act_data_rcv[2], ", FPTR, "inact_data_rcv[2];\n"]);
 					fprintf(out_hdl, "#endif\n\n");
 				else
 					fprintf(out_hdl, "%s", ev_defines{1,1}); %EV ID
@@ -206,12 +308,12 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 			case 'ids_init()'
 				fprintf(out_hdl, "\n");
 				fprintf(out_hdl, "#ifdef EV_CONFIG\n");
-				fprintf(out_hdl, "void clear_ids_xmit_buff(ev_ids_t* ids_xmit_buff)  {\n");
+				fprintf(out_hdl, ["void clear_ids_xmit_buff(ev_ids_t ", FPTR, "ids_xmit_buff)  {\n"]);
 				if ~isempty(ev_defines{1,1})
 					fprintf(out_hdl, "  mem_init((ids_xmit_buff->v), (uint8_t)sizeof(ev_ids_vars_t), 0xFF);\n");
 				end
 				fprintf(out_hdl, "}\n");
-				fprintf(out_hdl, "void clear_ids_rcv_buff(se_ids_t* ids_rcv_buff)  {\n");
+				fprintf(out_hdl, ["void clear_ids_rcv_buff(se_ids_t ", FPTR, "ids_rcv_buff)  {\n"]);
 				if ~isempty(se_defines{1,1})
 					fprintf(out_hdl, "  mem_init(&(ids_rcv_buff->v), (uint8_t)sizeof(se_ids_vars_t), 0xFF);\n");
 				end
@@ -219,7 +321,7 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 					fprintf(out_hdl, "  mem_init(&(ids_rcv_buff->s), (uint8_t)sizeof(se_ids_strings_t), 0x00);\n");
 				end
 				fprintf(out_hdl, "}\n");
-				fprintf(out_hdl, "void clear_data_xmit_buff(ev_data_t* data_xmit_buff)  {\n");
+				fprintf(out_hdl, ["void clear_data_xmit_buff(ev_data_t ", FPTR, "data_xmit_buff)  {\n"]);
 				if ~isempty(ev_defines{1,2})
 					fprintf(out_hdl, "  mem_init(&(data_xmit_buff->v), (uint8_t)sizeof(ev_data_vars_t), 0xFF);\n");
 				end
@@ -227,7 +329,7 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 					fprintf(out_hdl, "  mem_init(&(data_xmit_buff->s), (uint8_t)sizeof(ev_data_strings_t), 0x00);\n");
 				end
 				fprintf(out_hdl, "}\n");
-				fprintf(out_hdl, "void clear_data_rcv_buff(se_data_t* data_rcv_buff)  {\n");
+				fprintf(out_hdl, ["void clear_data_rcv_buff(se_data_t ", FPTR, "data_rcv_buff)  {\n"]);
 				if ~isempty(se_defines{1,2})
 					fprintf(out_hdl, "  mem_init(&(data_rcv_buff->v), (uint8_t)sizeof(se_data_vars_t), 0xFF);\n");
 				end
@@ -236,12 +338,12 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 				end
 				fprintf(out_hdl, "}\n");
 				fprintf(out_hdl, "#else\n");
-				fprintf(out_hdl, "void clear_ids_xmit_buff(se_ids_t* ids_xmit_buff)  {\n");
+				fprintf(out_hdl, ["void clear_ids_xmit_buff(se_ids_t ", FPTR, "ids_xmit_buff)  {\n"]);
 				if ~isempty(ev_defines{1,1})
 					fprintf(out_hdl, "  mem_init((ids_xmit_buff->v), (uint8_t)sizeof(se_ids_vars_t), 0xFF);\n");
 				end
 				fprintf(out_hdl, "}\n");
-				fprintf(out_hdl, "void clear_ids_rcv_buff(ev_ids_t* ids_rcv_buff)  {\n");
+				fprintf(out_hdl, ["void clear_ids_rcv_buff(ev_ids_t ", FPTR, "ids_rcv_buff)  {\n"]);
 				if ~isempty(se_defines{1,1})
 					fprintf(out_hdl, "  mem_init(&(ids_rcv_buff->v), (uint8_t)sizeof(ev_ids_vars_t), 0xFF);\n");
 				end
@@ -249,7 +351,7 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 					fprintf(out_hdl, "  mem_init(&(ids_rcv_buff->s), (uint8_t)sizeof(ev_ids_strings_t), 0x00);\n");
 				end
 				fprintf(out_hdl, "}\n");
-				fprintf(out_hdl, "void clear_data_xmit_buff(se_data_t* data_xmit_buff)  {\n");
+				fprintf(out_hdl, ["void clear_data_xmit_buff(se_data_t ", FPTR, "data_xmit_buff)  {\n"]);
 				if ~isempty(se_defines{1,2})
 					fprintf(out_hdl, "  mem_init(&(data_xmit_buff->v), (uint8_t)sizeof(se_data_vars_t), 0xFF);\n");
 				end
@@ -257,7 +359,7 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 					fprintf(out_hdl, "  mem_init(&(data_xmit_buff->s), (uint8_t)sizeof(se_data_strings_t), 0x00);\n");
 				end
 				fprintf(out_hdl, "}\n");
-				fprintf(out_hdl, "void clear_data_rcv_buff(ev_data_t* data_rcv_buff)  {\n");
+				fprintf(out_hdl, ["void clear_data_rcv_buff(ev_data_t ", FPTR, "data_rcv_buff)  {\n"]);
 				if ~isempty(ev_defines{1,2})
 					fprintf(out_hdl, "  mem_init(&(data_rcv_buff->v), (uint8_t)sizeof(ev_data_vars_t), 0xFF);\n");
 				end
@@ -320,51 +422,51 @@ function gen_field_code(ods_in, c_in, c_out, print_command='commented', capl=fal
 				state = 'delete';
 			case 'ev_id_parse'
 				if ~capl
-					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, false);	%se because ev receives se data
+					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, FPTR, false);	%se because ev receives se data
 				else
-					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, true);
+					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, FPTR, true);
 				end
 
 				state = 'delete';
 			case 'ev_id_xmit'
-				gen_xmit_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, false);
+				gen_xmit_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, false, FPTR);
 
 				state = 'delete';
 			case 'ev_data_parse'
 				if ~capl
-					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, false);	%se because ev receives se data
+					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, FPTR, false);	%se because ev receives se data
 				else
-					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, true);
+					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, FPTR, true);
 				end
 
 				state = 'delete';
 			case 'ev_data_xmit'
-				gen_xmit_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, false);
+				gen_xmit_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, false, FPTR);
 
 				state = 'delete';
 
 			case 'se_id_parse'
 				if ~capl
-					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, false);	%ev because se receives ev data
+					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, FPTR, false);	%ev because se receives ev data
 				else
-					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, true);
+					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, FPTR, true);
 				end
 
 				state = 'delete';
 			case 'se_id_xmit'
-				gen_xmit_switch(out_hdl, 'se', 0, se_defined_pages, se_array, false);
+				gen_xmit_switch(out_hdl, 'se', 0, se_defined_pages, se_array, false, FPTR);
 
 				state = 'delete';
 			case 'se_data_parse'
 				if ~capl
-					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, false);
+					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, FPTR, false);
 				else
-					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, true);
+					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, FPTR, true);
 				end
 
 				state = 'delete';
 			case 'se_data_xmit'
-				gen_xmit_switch(out_hdl, 'se', 1, se_defined_pages, se_array, false);
+				gen_xmit_switch(out_hdl, 'se', 1, se_defined_pages, se_array, false, FPTR);
 
 				state = 'delete';
 			otherwise

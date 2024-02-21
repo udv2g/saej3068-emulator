@@ -291,7 +291,7 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
     //  break;
     case 15:
       SeID_p = frame;
-      PRINT_FRAME_VARIABLE(SeID, SeIDPageNumber, d);
+      PRINT_FRAME_VARIABLE(SeID, SeIDPage, d);
       PRINT_FRAME_VARIABLE(SeID, SeIDByteA, 0X);
       PRINT_FRAME_VARIABLE(SeID, SeIDByteB, 0X);
       PRINT_FRAME_VARIABLE(SeID, SeIDByteC, 0X);
@@ -302,7 +302,7 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
       break;
     case 16:
       EvID_p = frame;
-      PRINT_FRAME_VARIABLE(EvID, EvIDPageNumber, d);
+      PRINT_FRAME_VARIABLE(EvID, EvIDPage, d);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteA, 0X);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteB, 0X);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteC, 0X);
