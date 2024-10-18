@@ -22,6 +22,15 @@ schedule_action_t schedule_ver[NUMBER_OF_FRAMES] = {
   DoNothing,      //EvErrorList
   DoNothing,      //SeID
   DoNothing,      //EvID
+  DoNothing,      //17
+  DoNothing,      //18
+  DoNothing,      //19
+  DoNothing,      //20
+  DoNothing,      //EvModeCtrl
+  DoNothing,      //SeModeCtrl
+  DoNothing,      //EvJ3072
+  DoNothing,      //SeJ3072
+  DoNothing,      //SeTargets1
 };
 
 schedule_action_t schedule_init[NUMBER_OF_FRAMES] = {
@@ -42,6 +51,15 @@ schedule_action_t schedule_init[NUMBER_OF_FRAMES] = {
   DoNothing,      //EvErrorList
   DoNothing,      //SeID
   DoNothing,      //EvID
+  DoNothing,      //17
+  DoNothing,      //18
+  DoNothing,      //19
+  DoNothing,      //20
+  DoNothing,      //EvModeCtrl
+  DoNothing,      //SeModeCtrl
+  DoNothing,      //EvJ3072
+  DoNothing,      //SeJ3072
+  DoNothing,      //SeTargets1
 };
 
 schedule_action_t schedule_op_base[NUMBER_OF_FRAMES] = {
@@ -62,6 +80,15 @@ schedule_action_t schedule_op_base[NUMBER_OF_FRAMES] = {
   DoNothing,      //EvErrorList
   DoNothing,      //SeID
   DoNothing,      //EvID
+  DoNothing,      //17
+  DoNothing,      //18
+  DoNothing,      //19
+  DoNothing,      //20
+  DoNothing,      //EvModeCtrl
+  DoNothing,      //SeModeCtrl
+  DoNothing,      //EvJ3072
+  DoNothing,      //SeJ3072
+  DoNothing,      //SeTargets1
 };
 
 schedule_action_t schedule_op_slash1[NUMBER_OF_FRAMES] = {
@@ -82,6 +109,44 @@ schedule_action_t schedule_op_slash1[NUMBER_OF_FRAMES] = {
   DoNothing,      //EvErrorList
   CopySeToEv,     //SeID
   CopyEvToSe,     //EvID
+  DoNothing,      //17
+  DoNothing,      //18
+  DoNothing,      //19
+  DoNothing,      //20
+  DoNothing,      //EvModeCtrl
+  DoNothing,      //SeModeCtrl
+  DoNothing,      //EvJ3072
+  DoNothing,      //SeJ3072
+  DoNothing,      //SeTargets1
+};
+
+schedule_action_t schedule_op_slash2[NUMBER_OF_FRAMES] = {
+  DoNothing,      //SeVersionList
+  DoNothing,      //EvVersionList
+  CopySeToEv,     //SeStatus
+  CopyEvToSe,     //EvStatus
+  CopyEvToSe,     //EvPresentCurrents
+  DoNothing,      //SeNomVoltages
+  DoNothing,      //SeMaxCurrents
+  DoNothing,      //EvMaxVoltages
+  DoNothing,      //EvMinVoltages
+  DoNothing,      //EvMaxMinCurrents
+  DoNothing,      //CaProperties
+  CopySeToEv,     //SeInfoList
+  CopyEvToSe,     //EvInfoList
+  DoNothing,      //StErrorList
+  DoNothing,      //EvErrorList
+  CopySeToEv,     //SeID
+  CopyEvToSe,     //EvID
+  DoNothing,      //17
+  DoNothing,      //18
+  DoNothing,      //19
+  DoNothing,      //20
+  CopyEvToSe,      //EvModeCtrl
+  CopySeToEv,      //SeModeCtrl
+  CopyEvToSe,      //EvJ3072
+  CopySeToEv,      //SeJ3072
+  CopySeToEv,      //SeTargets1
 };
 
 void verify_type_sizes()  {
@@ -100,6 +165,11 @@ void verify_type_sizes()  {
   printf("%s, %ld\n", FRAME_SIZE(EvInfoList_t));
   printf("%s, %ld\n", FRAME_SIZE(SeID_t));
   printf("%s, %ld\n", FRAME_SIZE(EvID_t));
+  printf("%s, %ld\n", FRAME_SIZE(EvModeCtrl_t));
+  printf("%s, %ld\n", FRAME_SIZE(SeModeCtrl_t));
+  printf("%s, %ld\n", FRAME_SIZE(EvJ3072_t));
+  printf("%s, %ld\n", FRAME_SIZE(SeJ3072_t));
+  printf("%s, %ld\n", FRAME_SIZE(SeTargets1_t));
 }
 
 
@@ -139,6 +209,11 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
   char * statusOp[] = { "Deny_V", "Permit_V", "Error", "Not_Available" };
   char * awake[] = { "Sleep", "Awake" };
   char * error[] = { "No_Error", "Error" };
+  char * gridCode[] = {"Not_Supported", "Basic_V2G_settings_A", "Basic_V2X_settings_B", "UL_1741-SA", "IEEE_1547-2018_or_UL_1741-SB", "Error", "No_Request_or_Unconfigured"};
+  char * gridCodeMod[] = {"Modified", "Unmodified"};
+  char * ctrlModeAck[] = {"Normal_Charging", "CCL", "TC_P-", "TGC_P+-", "TC+R_II&III", "TGC+R_I-IV", "Autonomous_or_External", "Local_EPS_Forming", "Processing", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved", "Reserved"};
+  char * evInverterState[] = {"Disconnected_Off", "Deep_sleep_offline", "Deep_sleep_online", "Light_Transparent_sleep", "Active_On", "In_Transition", "Not_Active_for_20+_seconds", "Error", "Not_Available"};
+  char * sePwrCtrlAuth[] = {"No_Authorization", "Authorization_to_form_Local_EPS", "Authorization_to_Discharge", "Processing", "Reserved", "Reserved"};
 
 #define PRINT_FRAME_VARIABLE(frame_name, variable_name, format) fprintf(stream,  "%42s: %" #format "\n", #frame_name "->" #variable_name, (frame_name##_p)->variable_name )
 #define PRINT_FRAME_ENUM(frame_name, variable_name, strings) fprintf(stream, "%42s: %s\n", #frame_name "->" #variable_name, strings[(frame_name##_p)->variable_name] )
@@ -310,6 +385,72 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
       PRINT_FRAME_VARIABLE(EvID, EvIDByteE, 0X);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteF, 0X);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteG, 0X);
+      break;
+
+    //case 17:
+    //  break;
+    
+    //case 18:
+    //  break;
+
+    //case 19:
+    //  break;
+
+    //case 20:
+    //  break;
+
+    // TODO Update to use enums.
+    case 21:
+      EvModeCtrl_p = frame;
+      PRINT_FRAME_VARIABLE(EvModeCtrl, EvGridCodeStatusMod, 0x);
+      PRINT_FRAME_VARIABLE(EvModeCtrl, EvGridCodeStatus, 0x);
+      PRINT_FRAME_VARIABLE(EvModeCtrl, EvInverterState, 0x);
+      PRINT_FRAME_VARIABLE(EvModeCtrl, EvPwrCtrlModeAck, 0x);
+      PRINT_FRAME_VARIABLE(EvModeCtrl, EvPwrCtrlUnitsAvail, 0X);
+      PRINT_FRAME_VARIABLE(EvModeCtrl, EvPwrCtrlModesAvail, 0x);
+      break;
+
+    // TODO Update to use enums.
+    case 22:
+      SeModeCtrl_p = frame;
+      PRINT_FRAME_VARIABLE(SeModeCtrl, SeGridCodeRequest, 0x);
+      PRINT_FRAME_VARIABLE(SeModeCtrl, SeInverterRequest, 0x);
+      PRINT_FRAME_VARIABLE(SeModeCtrl, SePwrCtrlMode, 0x);
+      PRINT_FRAME_VARIABLE(SeModeCtrl, SePwrCtrlUnits, 0X);
+      PRINT_FRAME_VARIABLE(SeModeCtrl, SePwrCtrlAuth, 0x);
+      PRINT_FRAME_VARIABLE(SeModeCtrl, SeTimeStamp, 0X);
+      break;
+
+    case 23:
+      EvJ3072_p = frame;
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072Page, d);
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072ByteA, 0X);
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072ByteB, 0X);
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072ByteC, 0X);
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072ByteD, 0X);
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072ByteE, 0X);
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072ByteF, 0X);
+      PRINT_FRAME_VARIABLE(EvJ3072, EvJ3072ByteG, 0X);      
+      break;
+
+    case 24:
+      SeJ3072_p = frame;
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072Page, d);
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072ByteA, 0X);
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072ByteB, 0X);
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072ByteC, 0X);
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072ByteD, 0X);
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072ByteE, 0X);
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072ByteF, 0X);
+      PRINT_FRAME_VARIABLE(SeJ3072, SeJ3072ByteG, 0X); 
+      break;
+
+    case 25:
+      SeTargets1_p = frame;
+      PRINT_FRAME_VARIABLE(SeTargets1, SeTargets1ElementA, 0X);
+      PRINT_FRAME_VARIABLE(SeTargets1, SeTargets1ElementB, 0X);
+      PRINT_FRAME_VARIABLE(SeTargets1, SeTargets1ElementC, 0X);
+      PRINT_FRAME_VARIABLE(SeTargets1, SeTargets1ElementD, 0X);
       break;
   }
 }

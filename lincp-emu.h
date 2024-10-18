@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define NUMBER_OF_FRAMES 17 //64 for complete LIN
+#define NUMBER_OF_FRAMES 26 //64 for complete LIN
 
 #define GENERATE_TEXT_LOG
 #define GENERATE_ASC_LOG
@@ -33,7 +33,13 @@
   FRAME_ASSIGN(SeInfoList, 11);             \
   FRAME_ASSIGN(EvInfoList, 12);             \
   FRAME_ASSIGN(SeID, 15);                   \
-  FRAME_ASSIGN(EvID, 16);
+  FRAME_ASSIGN(EvID, 16);                   \
+  FRAME_ASSIGN(EvModeCtrl, 21);             \
+  FRAME_ASSIGN(SeModeCtrl, 22);             \
+  FRAME_ASSIGN(EvJ3072, 23);                \
+  FRAME_ASSIGN(SeJ3072, 24);                \
+  FRAME_ASSIGN(SeTargets1, 25);
+
 
 #define CREATE_FRAME_POINTERS()             \
   FRAME_POINTER(SeVersionList);             \
@@ -49,7 +55,13 @@
   FRAME_POINTER(SeInfoList);                \
   FRAME_POINTER(EvInfoList);                \
   FRAME_POINTER(SeID);                      \
-  FRAME_POINTER(EvID);
+  FRAME_POINTER(EvID);                      \
+  FRAME_POINTER(EvModeCtrl);                \
+  FRAME_POINTER(SeModeCtrl);                \
+  FRAME_POINTER(EvJ3072);                   \
+  FRAME_POINTER(SeJ3072);                   \
+  FRAME_POINTER(SeTargets1);
+
 
 typedef struct {
   bool flag;
@@ -253,6 +265,68 @@ typedef struct {
   uint8_t EvIDByteG;
 } EvID_t;
 
+//Frame: 17, Reserved 
+//Frame: 18, Reserved
+//Frame: 19, Reserved
+//Frame: 20, Reserved
+
+//Frame: 21, EvModeCtrl
+typedef struct {
+  unsigned int EvGridCodeStatusMod : 1;
+  unsigned int EvGridCodeStatus : 15;
+  unsigned int EvInverterState : 4;
+  unsigned int : 4;
+  uint8_t EvPwrCtrlModeAck;
+  uint16_t EvPwrCtrlUnitsAvail;
+  uint16_t EvPwrCtrlModesAvail;
+}  __attribute__((__packed__)) EvModeCtrl_t;
+
+//Frame 22, SeModeCtrl
+typedef struct {
+  unsigned int : 1;
+  unsigned int SeGridCodeRequest : 15;
+  unsigned int SeInverterRequest : 4;
+  unsigned int : 4;
+  uint8_t SePwrCtrlMode;
+  unsigned int SePwrCtrlUnits : 4;
+  unsigned int SePwrCtrlAuth : 4;
+  uint8_t reserved1;
+  uint8_t reserved2;
+  uint8_t SeTimeStamp;
+} __attribute__((__packed__)) SeModeCtrl_t;
+
+//Frame 23, EvJ3072
+typedef struct{
+  uint8_t EvJ3072Page;
+  uint8_t EvJ3072ByteA;
+  uint8_t EvJ3072ByteB;
+  uint8_t EvJ3072ByteC;
+  uint8_t EvJ3072ByteD;
+  uint8_t EvJ3072ByteE;
+  uint8_t EvJ3072ByteF;
+  uint8_t EvJ3072ByteG;
+} EvJ3072_t;
+
+//Frame 24, SeJ3072
+typedef struct{
+  uint8_t SeJ3072Page;
+  uint8_t SeJ3072ByteA;
+  uint8_t SeJ3072ByteB;
+  uint8_t SeJ3072ByteC;
+  uint8_t SeJ3072ByteD;
+  uint8_t SeJ3072ByteE;
+  uint8_t SeJ3072ByteF;
+  uint8_t SeJ3072ByteG;
+} SeJ3072_t;
+
+//Frame 25, SeTargets1
+typedef struct{
+  uint16_t SeTargets1ElementA;
+  uint16_t SeTargets1ElementB;
+  uint16_t SeTargets1ElementC;
+  uint16_t SeTargets1ElementD;
+} __attribute__((__packed__)) SeTargets1_t;
+
 
 extern FRAME_POINTER(SeVersionList);
 extern FRAME_POINTER(EvVersionList);
@@ -268,9 +342,14 @@ extern FRAME_POINTER(SeInfoList);
 extern FRAME_POINTER(EvInfoList);
 extern FRAME_POINTER(SeID);
 extern FRAME_POINTER(EvID);
+extern FRAME_POINTER(EvModeCtrl);
+extern FRAME_POINTER(SeModeCtrl);
+extern FRAME_POINTER(EvJ3072);
+extern FRAME_POINTER(SeJ3072);
+extern FRAME_POINTER(SeTargets1);
 
 typedef enum { DoNothing = 0, CopySeToEv, CopyEvToSe } schedule_action_t;
-typedef enum { LI0_LIN_NULL_SCHEDULE = 0, LI0_GOTO_SLEEP_SCHEDULE, LI0_Ver, LI0_Init, LI0_Op, LI0_Op3 } schedule_picker_t;
+typedef enum { LI0_LIN_NULL_SCHEDULE = 0, LI0_GOTO_SLEEP_SCHEDULE, LI0_Ver, LI0_Init, LI0_Op, LI0_Op3,  LI0_Op252} schedule_picker_t;
 
 void verify_type_sizes();
 void print_generic_frame(uint8_t frame_number, generic_frame_t * frame);
@@ -283,6 +362,7 @@ extern schedule_action_t schedule_ver[];
 extern schedule_action_t schedule_init[];
 extern schedule_action_t schedule_op_base[];
 extern schedule_action_t schedule_op_slash1[];
+extern schedule_action_t schedule_op_slash2[];
 
 extern generic_frame_t *all_frames;
 extern schedule_picker_t *schedule_picker_p;

@@ -14,9 +14,9 @@ variables
   byte rcvd_pages[2] = {0,0};//EV = 0, SE = 1
   byte info_codes_rcv_buff[2][RCV_BUFFER_SIZE];
 
-  enum ID_STATUS_TYPE {ID_INCOMPLETE = 0, ID_COMPLETE = 1, DATA = 2} se_id_status = ID_INCOMPLETE, ev_id_status = ID_INCOMPLETE;
+  enum ID_STATUS_TYPE {ID_NOT_READY = 0, ID_INCOMPLETE = 1, ID_COMPLETE = 2 , DATA = 3} se_id_status = ID_INCOMPLETE, ev_id_status = ID_INCOMPLETE;
 
-  char Id_Status_strings[3][20] = {"ID_INCOMPLETE", "ID_COMPLETE", "DATA" };
+  char Id_Status_strings[4][20] = {"ID_NOT_READY", "ID_INCOMPLETE", "ID_COMPLETE", "DATA" };
   char xmit_crc_status[3][20] = {"Not Transmitted", "Transmitted", "Reserved"};
   char rcv_crc_status[5][20] = {"Not Checked", "Matches", "Does not Match", "No Full Cycle", "Reserved"};
 

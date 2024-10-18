@@ -320,6 +320,98 @@ typedef uint32_t l_u32;
 #define l_flg_tst_LI0_EvID_flag()           all_frames[16].flag
 #define l_flg_clr_LI0_EvID_flag()           all_frames[16].flag = false
 
+//Frame: 17, Reserved 
+
+//Frame: 18, Reserved
+
+//Frame: 19, Reserved
+
+//Frame: 20, Reserved
+
+//EvModeCtrl, 21
+#define l_bool_rd_LI0_EvGridCodeStatusMod()       EvModeCtrl_p->EvGridCodeStatusMod
+#define l_bool_wr_LI0_EvGridCodeStatusMod(x)      EvModeCtrl_p->EvGridCodeStatusMod = (x)
+#define l_u16_rd_LI0_EvGridCodeStatus()           EvModeCtrl_p->EvGridCodeStatus
+#define l_u16_wr_LI0_EvGridCodeStatus(x)          EvModeCtrl_p->EvGridCodeStatus = (x)
+#define l_u8_rd_LI0_EvInverterState()             EvModeCtrl_p->EvInverterState
+#define l_u8_wr_LI0_EvInverterState(x)            EvModeCtrl_p->EvInverterState = (x)
+#define l_u8_rd_LI0_EvPwrCtrlModeAck()            EvModeCtrl_p->EvPwrCtrlModeAck
+#define l_u8_wr_LI0_EvPwrCtrlModeAck(x)           EvModeCtrl_p->EvPwrCtrlModeAck = (x)
+#define l_u16_rd_LI0_EvPwrCtrlUnitsAvail()        EvModeCtrl_p->EvPwrCtrlUnitsAvail
+#define l_u16_wr_LI0_EvPwrCtrlUnitsAvail(x)       EvModeCtrl_p->EvPwrCtrlUnitsAvail = (x)
+#define l_u16_rd_LI0_EvPwrCtrlModesAvail()        EvModeCtrl_p->EvPwrCtrlModesAvail
+#define l_u16_wr_LI0_EvPwrCtrlModesAvail(x)       EvModeCtrl_p->EvPwrCtrlModesAvail = (x)
+#define l_flg_tst_LI0_EvModeCtrl_flag()           all_frames[21].flag
+#define l_flg_clr_LI0_EvModeCtrl_flag()           all_frames[21].flag = false
+
+//SeModeCtrl_p, 22
+#define l_u16_rd_LI0_SeGridCodeRequest()          SeModeCtrl_p->SeGridCodeRequest
+#define l_u16_wr_LI0_SeGridCodeRequest(x)         SeModeCtrl_p->SeGridCodeRequest = (x)
+#define l_u8_rd_LI0_SeInverterRequest()           SeModeCtrl_p->SeInverterRequest
+#define l_u8_wr_LI0_SeInverterRequest(x)          SeModeCtrl_p->SeInverterRequest = (x)
+#define l_u8_rd_LI0_SePwrCtrlMode()               SeModeCtrl_p->SePwrCtrlMode
+#define l_u8_wr_LI0_SePwrCtrlMode(x)              SeModeCtrl_p->SePwrCtrlMode = (x)
+#define l_u8_rd_LI0_SePwrCtrlUnits()              SeModeCtrl_p->SePwrCtrlUnits
+#define l_u8_wr_LI0_SePwrCtrlUnits(x)             SeModeCtrl_p->SePwrCtrlUnits = (x)
+#define l_u8_rd_LI0_SePwrCtrlAuth()               SeModeCtrl_p->SePwrCtrlAuth
+#define l_u8_wr_LI0_SePwrCtrlAuth(x)              SeModeCtrl_p->SePwrCtrlAuth = (x)
+#define l_u8_rd_LI0_SeTimeStamp()                 SeModeCtrl_p->SeTimeStamp
+#define l_u8_wr_LI0_SeTimeStamp(x)                SeModeCtrl_p->SeTimeStamp = (x)
+#define l_flg_tst_LI0_SeModeCtrl_flag()           all_frames[22].flag
+#define l_flg_clr_LI0_SeModeCtrl_flag()           all_frames[22].flag = false
+
+//EvJ3072_p, 23
+#define l_u8_rd_LI0_EvJ3072Page()                 EvJ3072_p->EvJ3072Page
+#define l_u8_wr_LI0_EvJ3072Page(x)                EvJ3072_p->EvJ3072Page = (x)
+#define l_u8_rd_LI0_EvJ3072ByteA()                EvJ3072_p->EvJ3072ByteA
+#define l_u8_wr_LI0_EvJ3072ByteA(x)               EvJ3072_p->EvJ3072ByteA = (x)
+#define l_u8_rd_LI0_EvJ3072ByteB()                EvJ3072_p->EvJ3072ByteB
+#define l_u8_wr_LI0_EvJ3072ByteB(x)               EvJ3072_p->EvJ3072ByteB = (x)
+#define l_u8_rd_LI0_EvJ3072ByteC()                EvJ3072_p->EvJ3072ByteC
+#define l_u8_wr_LI0_EvJ3072ByteC(x)               EvJ3072_p->EvJ3072ByteC = (x)
+#define l_u8_rd_LI0_EvJ3072ByteD()                EvJ3072_p->EvJ3072ByteD
+#define l_u8_wr_LI0_EvJ3072ByteD(x)               EvJ3072_p->EvJ3072ByteD = (x)
+#define l_u8_rd_LI0_EvJ3072ByteE()                EvJ3072_p->EvJ3072ByteE
+#define l_u8_wr_LI0_EvJ3072ByteE(x)               EvJ3072_p->EvJ3072ByteE = (x)
+#define l_u8_rd_LI0_EvJ3072ByteF()                EvJ3072_p->EvJ3072ByteF
+#define l_u8_wr_LI0_EvJ3072ByteF(x)               EvJ3072_p->EvJ3072ByteF = (x)
+#define l_u8_rd_LI0_EvJ3072ByteG()                EvJ3072_p->EvJ3072ByteG
+#define l_u8_wr_LI0_EvJ3072ByteG(x)               EvJ3072_p->EvJ3072ByteG = (x)
+#define l_flg_tst_LI0_EvJ3072_flag()              all_frames[23].flag
+#define l_flg_clr_LI0_EvJ3072_flag()              all_frames[23].flag = false
+
+//SeJ3072_p, 24
+#define l_u8_rd_LI0_SeJ3072Page()                 SeJ3072_p->SeJ3072Page
+#define l_u8_wr_LI0_SeJ3072Page(x)                SeJ3072_p->SeJ3072Page = (x)
+#define l_u8_rd_LI0_SeJ3072ByteA()                SeJ3072_p->SeJ3072ByteA
+#define l_u8_wr_LI0_SeJ3072ByteA(x)               SeJ3072_p->SeJ3072ByteA = (x)
+#define l_u8_rd_LI0_SeJ3072ByteB()                SeJ3072_p->SeJ3072ByteB
+#define l_u8_wr_LI0_SeJ3072ByteB(x)               SeJ3072_p->SeJ3072ByteB = (x)
+#define l_u8_rd_LI0_SeJ3072ByteC()                SeJ3072_p->SeJ3072ByteC
+#define l_u8_wr_LI0_SeJ3072ByteC(x)               SeJ3072_p->SeJ3072ByteC = (x)
+#define l_u8_rd_LI0_SeJ3072ByteD()                SeJ3072_p->SeJ3072ByteD
+#define l_u8_wr_LI0_SeJ3072ByteD(x)               SeJ3072_p->SeJ3072ByteD = (x)
+#define l_u8_rd_LI0_SeJ3072ByteE()                SeJ3072_p->SeJ3072ByteE
+#define l_u8_wr_LI0_SeJ3072ByteE(x)               SeJ3072_p->SeJ3072ByteE = (x)
+#define l_u8_rd_LI0_SeJ3072ByteF()                SeJ3072_p->SeJ3072ByteF
+#define l_u8_wr_LI0_SeJ3072ByteF(x)               SeJ3072_p->SeJ3072ByteF = (x)
+#define l_u8_rd_LI0_SeJ3072ByteG()                SeJ3072_p->SeJ3072ByteG
+#define l_u8_wr_LI0_SeJ3072ByteG(x)               SeJ3072_p->SeJ3072ByteG = (x)
+#define l_flg_tst_LI0_SeJ3072_flag()              all_frames[24].flag
+#define l_flg_clr_LI0_SeJ3072_flag()              all_frames[24].flag = false
+
+//SeTargets1_p, 25
+#define l_u8_rd_LI0_SeTargets1ElementA()         SeTargets1_p->SeTargets1ElementA
+#define l_u8_wr_LI0_SeTargets1ElementA(x)        SeTargets1_p->SeTargets1ElementA = (x)
+#define l_u8_rd_LI0_SeTargets1ElementB()         SeTargets1_p->SeTargets1ElementB
+#define l_u8_wr_LI0_SeTargets1ElementB(x)        SeTargets1_p->SeTargets1ElementB = (x)
+#define l_u8_rd_LI0_SeTargets1ElementC()         SeTargets1_p->SeTargets1ElementC
+#define l_u8_wr_LI0_SeTargets1ElementC(x)        SeTargets1_p->SeTargets1ElementC = (x)
+#define l_u8_rd_LI0_SeTargets1ElementD()         SeTargets1_p->SeTargets1ElementD
+#define l_u8_wr_LI0_SeTargets1ElementD(x)        SeTargets1_p->SeTargets1ElementD = (x)
+#define l_flg_tst_LI0_SeTargets1_flag()          all_frames[25].flag
+#define l_flg_clr_LI0_SeTargets1_flag()          all_frames[25].flag = false
+
 #define l_sch_set(it,sch,entry) *schedule_picker_p = (sch)
 
 #define l_sys_init()    (void)0     //probably make these actually do something

@@ -4,7 +4,7 @@ This project emulates the LIN-CP communications between an EV and SE (EVSE) for 
 
 It is based on the [reference implementation](https://github.com/udv2g/saej3068-ref) and, therefore, implements both the EV and SE in the same code base and the application code supports two connectors/inlets on each side, but the emulator only supports one (channel A).
 
-It has been updated with the data definitions from the recently published SAE J3068/1 including an updated LDF file with finalized definitions.
+It has been updated with the data definitions from SAE J3068/1 and SAE J3068/2 including an updated LDF file with finalized definitions.
 
 ---
 Usage
@@ -35,6 +35,7 @@ General files
 | Filename(s)                  | Description |
 | :--------------------------- | :---------- |
 | J3068_1.ldf                  | LDF file updated for SAE J3068/1. |
+| J3068_2.ldf                  | LDF file updated for SAE J3068/2. |
 | Info Codes.ods               | OpenDocument spreadsheet used to generate `info_codes.h` and `InfoCodeStrings.h` (and `InfoCodeStrings.cin`). |
 | `makefile`                   | GNU Make configuration file. |
 | `globals.h` <br/>  `ids_handler.h` <br/>  `info_code_handler.h` <br/> `msleep.h` <br/> `protocol_version_hanlder.h` <br/> `scheduler.h` | headers necessary to link the similarly named .c files. |
@@ -64,6 +65,8 @@ Application code files -- These files can be inserted into the [reference implem
 | `protocol_version_handler.c` | Implements Protocol Version negotiation when many Protocol Versions are supported. |
 | `info_codes.h`               | Header file providing macros for `InfoEntryX` values. |
 | `InfoCodeStrings.h`          | "Improper" header file defining strings for each `InfoEntryX` value. |
+| `j3072_handler.c`            | Partial implementation of SAE J3068/2 |
+
 
 Code generator files
 
@@ -72,15 +75,17 @@ Code generator files
 | `gen_field_code.m`           | Top-level generator script |
 | `field table pub.ods`        | Description of SAE J3068/1 data in a format used by the code generator. |
 | `field table pub CAPL.ods`   | As above for CAPL code generation. |
-| `gen_page_array.m` <br/> `gen_parse_switch.m` <br/> `gen_variables.m` <br/> `gen_xmit_switch.m` <br/> `parse_row.m` | Internal fuctions for the generation script. |
+| `gen_page_array.m` <br/> `gen_parse_switch.m` <br/> `gen_variables.m` <br/> `gen_xmit_switch.m` <br/> `parse_row.m` | Internal functions for the generation script. |
 
 Vector CAPL files
 | Filename                     | Description |
 | :--------------------------  | :---------- |
-| `ids.can`                    | Parsing script that can be added inline with any unused node in "Measurement Setup" to interpret an SAE J3068 connection session.  Output is sent to the "Write" window in the "CAPL / .NET" tab. Bus activity is not passed to the connected node. |
+| `ids.can`                    | Parsing script that can be added inline with any unused node in "Measurement Setup" to interpret an SAE J3068 or SAE J3068/1 connection session.  Output is sent to the "Write" window in the "CAPL / .NET" tab. Bus activity is not passed to the connected node. |
 | `ids-template.can`           | Template file used by code generator to create `ids.can`. |
 | `InfoCodeStrings.cin`        | Include file required by `ids.can` to identify `InfoEntryX`s.  Equivalent to `InfoCodeStrings.h` in the C project. |
 | `CANoe.png`                  | Screenshot of `ids.can` used in CANoe. Use in CANalyzer similar. |
+| `j3072.can`                  | Parsing script that can be added inline with any unused node in "Measurement Setup" to, in conjunction with ids.can, interpret an SAE J3068/2 connection session.  Output is sent to the "Write" window in the "J3072" tab. Bus activity is not passed to the connected node. |
+| `j3072-template.can`         | Template file used by code generator to create `j3072.can`. |
 
 ---
 Code Generator Usage

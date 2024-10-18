@@ -14,9 +14,9 @@ variables
   byte rcvd_pages[2] = {0,0};//EV = 0, SE = 1
   byte info_codes_rcv_buff[2][RCV_BUFFER_SIZE];
 
-  enum ID_STATUS_TYPE {ID_INCOMPLETE = 0, ID_COMPLETE = 1, DATA = 2} se_id_status = ID_INCOMPLETE, ev_id_status = ID_INCOMPLETE;
+  enum ID_STATUS_TYPE {ID_NOT_READY = 0, ID_INCOMPLETE = 1, ID_COMPLETE = 2 , DATA = 3} se_id_status = ID_INCOMPLETE, ev_id_status = ID_INCOMPLETE;
 
-  char Id_Status_strings[3][20] = {"ID_INCOMPLETE", "ID_COMPLETE", "DATA" };
+  char Id_Status_strings[4][20] = {"ID_NOT_READY", "ID_INCOMPLETE", "ID_COMPLETE", "DATA" };
   char xmit_crc_status[3][20] = {"Not Transmitted", "Transmitted", "Reserved"};
   char rcv_crc_status[5][20] = {"Not Checked", "Matches", "Does not Match", "No Full Cycle", "Reserved"};
 
@@ -1138,7 +1138,7 @@ void ev_id_parse() {
       } else if(EvACActivePower >= 0xFB00){
         write("%f-EvACActivePower Reserved 0x%X", timenow()/100000.0, (EvACActivePower));
       } else {
-        write("%f-EvACActivePower %d W", timenow()/100000.0, (EvACActivePower * 16) - 500);
+        write("%f-EvACActivePower %d W", timenow()/100000.0, (EvACActivePower * 16) - 500000);
       }
       EvACReactivePower = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
       if(EvACReactivePower >= 0xFF00){
@@ -1148,7 +1148,7 @@ void ev_id_parse() {
       } else if(EvACReactivePower >= 0xFB00){
         write("%f-EvACReactivePower Reserved 0x%X", timenow()/100000.0, (EvACReactivePower));
       } else {
-        write("%f-EvACReactivePower %d VA", timenow()/100000.0, (EvACReactivePower * 16) - 500);
+        write("%f-EvACReactivePower %d VA", timenow()/100000.0, (EvACReactivePower * 16) - 500000);
       }
       EvACFrequency = ((byte)ev_buffer[4]);
       if(EvACFrequency >= 0xFF){
@@ -1962,7 +1962,7 @@ void ev_data_parse()  {
       } else if(EvACActivePower >= 0xFB00){
         write("%f-EvACActivePower Reserved 0x%X", timenow()/100000.0, (EvACActivePower));
       } else {
-        write("%f-EvACActivePower %d W", timenow()/100000.0, (EvACActivePower * 16) - 500);
+        write("%f-EvACActivePower %d W", timenow()/100000.0, (EvACActivePower * 16) - 500000);
       }
       EvACReactivePower = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
       if(EvACReactivePower >= 0xFF00){
@@ -1972,7 +1972,7 @@ void ev_data_parse()  {
       } else if(EvACReactivePower >= 0xFB00){
         write("%f-EvACReactivePower Reserved 0x%X", timenow()/100000.0, (EvACReactivePower));
       } else {
-        write("%f-EvACReactivePower %d VA", timenow()/100000.0, (EvACReactivePower * 16) - 500);
+        write("%f-EvACReactivePower %d VA", timenow()/100000.0, (EvACReactivePower * 16) - 500000);
       }
       EvACFrequency = ((byte)ev_buffer[4]);
       if(EvACFrequency >= 0xFF){

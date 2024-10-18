@@ -3,9 +3,6 @@
 #include "ids_handler.h"
 #include <time.h>
 
-uint8_t ev_id_status[2] = {ID_INCOMPLETE, ID_INCOMPLETE};
-uint8_t se_id_status[2] = {ID_INCOMPLETE, ID_INCOMPLETE};
-
 ///>Declarations
 
 #define EVSTATUSINLETLATCH_RELEASED 0x00
@@ -133,6 +130,10 @@ typedef struct  {
   uint16_t EvMaxChargerTemp;
   uint8_t EvInletTemp;
   uint8_t EvHVESSTemp;
+  uint16_t EvCurWattCharge;
+  uint16_t EvCurWattDischarge;
+  uint16_t EvCurVarAbsorb;
+  uint16_t EvCurVarSupply;
 } ev_data_vars_t;
 
 typedef struct  {
@@ -220,10 +221,12 @@ typedef struct  {
   ev_data_t data_xmit_buff_2_B = {{
     {'A','S','C','I','I','\0'},
   }};
+  se_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B;
+  se_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B;
   ev_ids_t *act_ids_xmit[2], *inact_ids_xmit[2];
-  se_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B, *act_ids_rcv[2], *inact_ids_rcv[2];
   ev_data_t *act_data_xmit[2], *inact_data_xmit[2];
-  se_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B, *act_data_rcv[2], *inact_data_rcv[2];
+  se_ids_t *act_ids_rcv[2], *inact_ids_rcv[2];
+  se_data_t *act_data_rcv[2], *inact_data_rcv[2];
 #else
   se_ids_t ids_xmit_buff_1_A = {{
     {'E','V','S','E','I','D',0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,'\0'},
@@ -257,18 +260,16 @@ typedef struct  {
     {'M','a','n','u','f','a','c','t','u','r','e','r',0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,'\0'},
     {'M','y','A','w','e','s','o','m','e','C','h','a','r','g','i','n','g','S','t','a','t','i','o','n',0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,'\0'},
   }};
-  se_data_t data_xmit_buff_1_A = {{
-  }};
-  se_data_t data_xmit_buff_2_A = {{
-  }};
-  se_data_t data_xmit_buff_1_B = {{
-  }};
-  se_data_t data_xmit_buff_2_B = {{
-  }};
+  se_data_t data_xmit_buff_1_A;
+  se_data_t data_xmit_buff_2_A;
+  se_data_t data_xmit_buff_1_B;
+  se_data_t data_xmit_buff_2_B;
+  ev_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B;
+  ev_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B;
   se_ids_t *act_ids_xmit[2], *inact_ids_xmit[2];
-  ev_ids_t ids_rcv_buff_1_A, ids_rcv_buff_2_A, ids_rcv_buff_1_B, ids_rcv_buff_2_B, *act_ids_rcv[2], *inact_ids_rcv[2];
   se_data_t *act_data_xmit[2], *inact_data_xmit[2];
-  ev_data_t data_rcv_buff_1_A, data_rcv_buff_2_A, data_rcv_buff_1_B, data_rcv_buff_2_B, *act_data_rcv[2], *inact_data_rcv[2];
+  ev_ids_t *act_ids_rcv[2], *inact_ids_rcv[2];
+  ev_data_t *act_data_rcv[2], *inact_data_rcv[2];
 #endif
 
 ///<Declarations
@@ -277,8 +278,8 @@ typedef struct  {
 #ifdef EV_CONFIG
 #define NUM_ID_PGS2SND 33
 uint8_t id_pages_to_send[NUM_ID_PGS2SND] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, };
-#define NUM_DATA_PGS2SND 15
-uint8_t data_pages_to_send[NUM_DATA_PGS2SND] = { 0, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, };
+#define NUM_DATA_PGS2SND 17
+uint8_t data_pages_to_send[NUM_DATA_PGS2SND] = { 0, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, };
 #else
 #define NUM_ID_PGS2SND 39
 uint8_t id_pages_to_send[NUM_ID_PGS2SND] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, };
@@ -318,28 +319,28 @@ void invalidate_bytes_page(uint8_t * buffer, uint8_t mask)  {
 ///>ids_init()
 
 #ifdef EV_CONFIG
-void clear_ids_xmit_buff(ev_ids_t* ids_xmit_buff)  {
+void clear_ids_xmit_buff(ev_ids_t *ids_xmit_buff)  {
 }
-void clear_ids_rcv_buff(se_ids_t* ids_rcv_buff)  {
+void clear_ids_rcv_buff(se_ids_t *ids_rcv_buff)  {
   mem_init(&(ids_rcv_buff->s), (uint8_t)sizeof(se_ids_strings_t), 0x00);
 }
-void clear_data_xmit_buff(ev_data_t* data_xmit_buff)  {
+void clear_data_xmit_buff(ev_data_t *data_xmit_buff)  {
   mem_init(&(data_xmit_buff->v), (uint8_t)sizeof(ev_data_vars_t), 0xFF);
   mem_init(&(data_xmit_buff->s), (uint8_t)sizeof(ev_data_strings_t), 0x00);
 }
-void clear_data_rcv_buff(se_data_t* data_rcv_buff)  {
+void clear_data_rcv_buff(se_data_t *data_rcv_buff)  {
   mem_init(&(data_rcv_buff->v), (uint8_t)sizeof(se_data_vars_t), 0xFF);
 }
 #else
-void clear_ids_xmit_buff(se_ids_t* ids_xmit_buff)  {
+void clear_ids_xmit_buff(se_ids_t *ids_xmit_buff)  {
 }
-void clear_ids_rcv_buff(ev_ids_t* ids_rcv_buff)  {
+void clear_ids_rcv_buff(ev_ids_t *ids_rcv_buff)  {
   mem_init(&(ids_rcv_buff->s), (uint8_t)sizeof(ev_ids_strings_t), 0x00);
 }
-void clear_data_xmit_buff(se_data_t* data_xmit_buff)  {
+void clear_data_xmit_buff(se_data_t *data_xmit_buff)  {
   mem_init(&(data_xmit_buff->v), (uint8_t)sizeof(se_data_vars_t), 0xFF);
 }
-void clear_data_rcv_buff(ev_data_t* data_rcv_buff)  {
+void clear_data_rcv_buff(ev_data_t *data_rcv_buff)  {
   mem_init(&(data_rcv_buff->v), (uint8_t)sizeof(ev_data_vars_t), 0xFF);
   mem_init(&(data_rcv_buff->s), (uint8_t)sizeof(ev_data_strings_t), 0x00);
 }
@@ -427,9 +428,9 @@ void ids_init(uint8_t ch) {
   PREPEND EvHVESSUserSOC = (uint8_t)(rand() & 0xFF);
   printf("EvHVESSUserSOC %.3lf %%\n", ((double)PREPEND EvHVESSUserSOC * 0.400000));
   PREPEND EvACActivePower = (uint16_t)(rand() & 0xFFFF);
-  printf("EvACActivePower %d W\n", (PREPEND EvACActivePower * 16) - 500);
+  printf("EvACActivePower %d W\n", (PREPEND EvACActivePower * 16) - 500000);
   PREPEND EvACReactivePower = (uint16_t)(rand() & 0xFFFF);
-  printf("EvACReactivePower %d VA\n", (PREPEND EvACReactivePower * 16) - 500);
+  printf("EvACReactivePower %d VA\n", (PREPEND EvACReactivePower * 16) - 500000);
   PREPEND EvACFrequency = (uint8_t)(rand() & 0xFF);
   printf("EvACFrequency %.3lf Hz\n", ((double)PREPEND EvACFrequency * 0.100000) - -42.500000);
   PREPEND EvL1NVolts = (uint16_t)(rand() & 0xFFFF);
@@ -470,6 +471,14 @@ void ids_init(uint8_t ch) {
   printf("EvInletTemp %d C\n", (PREPEND EvInletTemp) - 40);
   PREPEND EvHVESSTemp = (uint8_t)(rand() & 0xFF);
   printf("EvHVESSTemp %d C\n", (PREPEND EvHVESSTemp) - 40);
+  PREPEND EvCurWattCharge = (uint16_t)(rand() & 0xFFFF);
+  printf("EvCurWattCharge %.3lf kW\n", ((double)PREPEND EvCurWattCharge * 0.05));
+  PREPEND EvCurWattDischarge = (uint16_t)(rand() & 0xFFFF);
+  printf("EvCurWattDischarge %.3lf kW\n", ((double)PREPEND EvCurWattDischarge * 0.05));
+  PREPEND EvCurVarAbsorb = (uint16_t)(rand() & 0xFFFF);
+  printf("EvCurVarAbsorb %.3lf kVA\n", ((double)PREPEND EvCurVarAbsorb * 0.05));
+  PREPEND EvCurVarSupply = (uint16_t)(rand() & 0xFFFF);
+  printf("EvCurVarSupply %.3lf kVA\n", ((double)PREPEND EvCurVarSupply * 0.05));
   #undef PREPEND
 #else
   #define PREPEND (act_ids_xmit[ch]->v).
@@ -601,7 +610,11 @@ void on_id_frame_xmit(uint8_t ch) {
       first_data[ch] = false;
     } else  {
       //printf("Success!\n");
+#ifdef EV_CONFIG
+      if (xmit_pgs_indx[ch] == (NUM_DATA_PGS2SND-((LR(ch, l_u8, EvSelectedVersion_EvStatus) == PVER_SLASH_1) ? 3 : 1)))  { //exclude pages 111 and 112 in /1
+#else
       if (xmit_pgs_indx[ch] == NUM_DATA_PGS2SND-1)  {
+#endif
         xmit_pgs_indx[ch] = 0;
         temp_ptr = inact_data_xmit[ch];            //swap data xmit buffers
         inact_data_xmit[ch] = act_data_xmit[ch];
@@ -939,9 +952,14 @@ void data_xmit(uint8_t ch, uint8_t page) {
   switch(page) {
     case 0:
       buffer[0] = ev_id_status[ch];
-      buffer[1] = 15; //pages to be sent
       buffer[2] = 97; //first (non zero) page
-      buffer[3] = 110; //last page
+      if (LR(ch, l_u8, EvSelectedVersion_EvStatus) == PVER_SLASH_1) { //exclude capacity pages (111 and 112) if in /1
+        buffer[1] = 15; //pages to be sent
+        buffer[3] = 110; //last page
+      } else{
+        buffer[1] = 17; //pages to be sent
+        buffer[3] = 112; //last page
+      }
       buffer[4] = 0x00; //CRC neither sent nor read
       mask = 0b0000011;
       break;
@@ -1070,6 +1088,20 @@ void data_xmit(uint8_t ch, uint8_t page) {
       buffer[4] = ((act_data_xmit[ch]->v).EvInletTemp) & 0xFF;
       buffer[5] = ((act_data_xmit[ch]->v).EvHVESSTemp) & 0xFF;
       mask = 0b0000001;
+      break;
+    case 111:
+      buffer[0] = ((act_data_xmit[ch]->v).EvCurWattCharge) & 0xFF;
+      buffer[1] = ((act_data_xmit[ch]->v).EvCurWattCharge >> 8) & 0xFF;
+      buffer[2] = ((act_data_xmit[ch]->v).EvCurWattDischarge) & 0xFF;
+      buffer[3] = ((act_data_xmit[ch]->v).EvCurWattDischarge >> 8) & 0xFF;
+      mask = 0b0000111;
+      break;
+    case 112:
+      buffer[0] = ((act_data_xmit[ch]->v).EvCurVarAbsorb) & 0xFF;
+      buffer[1] = ((act_data_xmit[ch]->v).EvCurVarAbsorb >> 8) & 0xFF;
+      buffer[2] = ((act_data_xmit[ch]->v).EvCurVarSupply) & 0xFF;
+      buffer[3] = ((act_data_xmit[ch]->v).EvCurVarSupply >> 8) & 0xFF;
+      mask = 0b0000111;
       break;
   }
   ///<ev_data_xmit
@@ -1641,9 +1673,9 @@ void data_parse(uint8_t ch)  {
       break;
     case 105:
       (act_data_rcv[ch]->v).EvACActivePower = ((uint16_t)buffer[1] << 8) | ((uint16_t)buffer[0]);
-      printf("EvACActivePower %d W\n", ((act_data_rcv[ch]->v).EvACActivePower * 16) - 500);
+      printf("EvACActivePower %d W\n", ((act_data_rcv[ch]->v).EvACActivePower * 16) - 500000);
       (act_data_rcv[ch]->v).EvACReactivePower = ((uint16_t)buffer[3] << 8) | ((uint16_t)buffer[2]);
-      printf("EvACReactivePower %d VA\n", ((act_data_rcv[ch]->v).EvACReactivePower * 16) - 500);
+      printf("EvACReactivePower %d VA\n", ((act_data_rcv[ch]->v).EvACReactivePower * 16) - 500000);
       (act_data_rcv[ch]->v).EvACFrequency = ((uint8_t)buffer[4]);
       printf("EvACFrequency %.3lf Hz\n", ((double)(act_data_rcv[ch]->v).EvACFrequency * 0.100000) - -42.500000);
       break;
@@ -1694,6 +1726,18 @@ void data_parse(uint8_t ch)  {
       printf("EvInletTemp %d C\n", ((act_data_rcv[ch]->v).EvInletTemp) - 40);
       (act_data_rcv[ch]->v).EvHVESSTemp = ((uint8_t)buffer[5]);
       printf("EvHVESSTemp %d C\n", ((act_data_rcv[ch]->v).EvHVESSTemp) - 40);
+      break;
+    case 111:
+      (act_data_rcv[ch]->v).EvCurWattCharge = ((uint16_t)buffer[1] << 8) | ((uint16_t)buffer[0]);
+      printf("EvCurWattCharge %.3lf kW\n", ((double)(act_data_rcv[ch]->v).EvCurWattCharge * 0.05));
+      (act_data_rcv[ch]->v).EvCurWattDischarge = ((uint16_t)buffer[3] << 8) | ((uint16_t)buffer[2]);
+      printf("EvCurWattDischarge %.3lf kW\n", ((double)(act_data_rcv[ch]->v).EvCurWattDischarge * 0.05));
+      break;
+    case 112:
+      (act_data_rcv[ch]->v).EvCurVarAbsorb = ((uint16_t)buffer[1] << 8) | ((uint16_t)buffer[0]);
+      printf("EvCurVarAbsorb %.3lf kVA\n", ((double)(act_data_rcv[ch]->v).EvCurVarAbsorb * 0.05));
+      (act_data_rcv[ch]->v).EvCurVarSupply = ((uint16_t)buffer[3] << 8) | ((uint16_t)buffer[2]);
+      printf("EvCurVarSupply %.3lf kVA\n", ((double)(act_data_rcv[ch]->v).EvCurVarSupply * 0.05));
       break;
   }
   ///<se_data_parse

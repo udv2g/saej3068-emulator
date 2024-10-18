@@ -14,7 +14,7 @@
 #define MAX_LOG_NAME 50
 #define MAX_TIME_STRING 50
 
-char * schedule_strings[] = { "LI0_LIN_NULL_SCHEDULE", "LI0_GOTO_SLEEP_SCHEDULE", "LI0_Ver", "LI0_Init", "LI0_Op", "LI0_Op3" };
+char * schedule_strings[] = { "LI0_LIN_NULL_SCHEDULE", "LI0_GOTO_SLEEP_SCHEDULE", "LI0_Ver", "LI0_Init", "LI0_Op", "LI0_Op3", "LI0_Op252" };
 
 FILE * log_file;
 FILE * asc_file;
@@ -166,6 +166,9 @@ int main(int argc, char **argv)  {
       case LI0_Op3:
         current_schedule_p = schedule_op_slash1;
         break;
+      case LI0_Op252:
+        current_schedule_p = schedule_op_slash2;
+        break;
     }
 
     for(int i = 0; i< NUMBER_OF_FRAMES; i++)  {
@@ -191,8 +194,8 @@ int main(int argc, char **argv)  {
           } else  {
             source = ev_frames;
             destination = se_frames;
-          break;
           }
+          break;
       }
       if(source != NULL && destination != NULL) {
         for(int j = 0; j < 8; j++)  {

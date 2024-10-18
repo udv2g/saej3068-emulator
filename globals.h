@@ -44,4 +44,14 @@ extern l_u16 SeNomVoltsLN[2], SeNomVoltsLL[2];
 extern l_u8 SeFrequency[2], EvFrequencies[2];
 /*********LIN>**********/
 
+/*********<SLASH1**********/
+extern uint8_t ev_id_status[2];
+extern uint8_t se_id_status[2];
+/*********SLASH1>**********/
+
+/*********<SLASH2**********/
+extern uint8_t ev_j3072_status[2];
+extern uint8_t se_j3072_status[2];
+/*********SLASH2>**********/
+
 #endif

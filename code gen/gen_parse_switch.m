@@ -1,12 +1,21 @@
-function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print_command, FPTR, capl)
+function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print_command, FPTR, capl, slash)
+
+	switch slash
+		case 1
+			stages = {"ids", "data"};
+		case 2
+			stages = {"cert", "sunspec"};
+		otherwise
+			return
+	end
 
 	if capl
 		u8t = 'byte';
 		u16t = 'word';
 		u32t = 'dword';
 		buffer_prefix = [tolower(ident), '_'];
-		status_cast = '(enum ID_STATUS_TYPE)';
-		switch_variable = [buffer_prefix, 'id_page_number'];
+		status_cast = ['(enum ',{'ID','J3072'}{slash},'_STATUS_TYPE)'];
+		switch_variable = [buffer_prefix, {'id','j3072'}{slash},'_page_number'];
 		structure = {'','','',''};
 		ch_sel = '';
 	else
@@ -15,8 +24,8 @@ function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print
 		u32t = 'uint32_t';
 		buffer_prefix = '';
 		status_cast = '';
-		switch_variable = sprintf('LR(ch, l_u8, %sIDPage)', [toupper(ident)(1), ident(2)]);
-		structure = {'(act_ids_rcv[ch]->v).','(act_ids_rcv[ch]->s).','(act_data_rcv[ch]->v).','(act_data_rcv[ch]->s).'};	%id-v,id-s,data-v,data-s		stage*2 + (1 for v, 2 for s)
+		switch_variable = sprintf('LR(ch, l_u8, %s%sPage)', [toupper(ident)(1), ident(2)], {'ID','J3072'}{slash});
+		structure = {['(act_',stages{1},'_rcv[ch]->v).'],['(act_',stages{1},'_rcv[ch]->s).'],['(act_',stages{2},'_rcv[ch]->v).'],['(act_',stages{2},'_rcv[ch]->s).']};	%id-v,id-s,data-v,data-s		stage*2 + (1 for v, 2 for s)
 		ch_sel = '[ch]';
 	end
 
@@ -41,11 +50,11 @@ function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print
 	fprintf(file_handle, "  switch(%s) {\n", switch_variable);
 	fprintf(file_handle, "    case 0:\n");
 	fprintf(file_handle, "      pgs_to_read%s = %sbuffer[1];\n", ch_sel, buffer_prefix);
-	fprintf(file_handle, "      %s_id_status%s = %s%sbuffer[0];\n",tolower(ident), ch_sel, status_cast, buffer_prefix);
+	fprintf(file_handle, "      %s_%s_status%s = %s%sbuffer[0];\n",tolower(ident), {"id","j3072"}{slash}, ch_sel, status_cast, buffer_prefix);
 	fprintf(file_handle, "      last_pg%s = %sbuffer[3];\n", ch_sel, buffer_prefix);
 	fprintf(file_handle, "      pgs_read%s = 1;\n", ch_sel);
 	if ~capl
-		stage_string = {'ids', 'data'}{stage+1};
+		stage_string = stages{stage+1};
 		fprintf(file_handle, "%s\n", ['        clear_', stage_string, '_rcv_buff(act_', stage_string, '_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle']);
 	else
 		if tolower(ident) == 'ev'
@@ -58,7 +67,7 @@ function gen_parse_switch(file_handle, ident, stage, defined_pages, array, print
 		fprintf(file_handle, "      first_pg = %sbuffer[2];\n", buffer_prefix);
 		fprintf(file_handle, "      %s_crc = (%sbuffer[4] >> 4) & 0x0F;\n", xmiter, buffer_prefix);
 		fprintf(file_handle, "      %s_crc = (%sbuffer[4]) & 0x0F;\n", rcver, buffer_prefix);
-		fprintf(file_handle, "%s\n", ['      write("%f-', toupper(ident), ' Status %s", timenow()/100000.0, Id_Status_strings[', tolower(ident) '_id_status]);']);
+		fprintf(file_handle, "%s\n", ['      write("%f-', toupper(ident), ' Status %s", timenow()/100000.0, ',{'Id','J3072'}{slash},'_Status_strings[', tolower(ident) '_',{'id','j3072'}{slash},'_status]);']);
 		fprintf(file_handle, "%s\n", ['      write("%f-', toupper(ident), ' Pages: First %d; Last %d; Number %d", timenow()/100000.0, first_pg, last_pg, pgs_to_read);']);
 		fprintf(file_handle, "%s\n", ['      if (', xmiter, '_crc > 1) {']);
 		fprintf(file_handle, "%s\n", ['        ', xmiter, '_crc = 2;']);

@@ -5,6 +5,7 @@
 #include "scheduler.h"
 #include "protocol_version_handler.h"
 #include "ids_handler.h"
+#include "j3072_handler.h"
 
 
 // clang-format off
@@ -162,6 +163,12 @@ void InitializeLINvariables(uint8_t ch) {
   LW(ch, l_u8, EvRequestedCurrentN, NotAvail_8bit);
 //#pragma MESSAGE DISABLE C4002 //result not used -- ternary operator should not be used for assignements
   l_bool_wr_LI0_EvAwake(1);
+  LW(ch, l_bool, EvGridCodeStatusMod, true);
+  LW(ch, l_u16, EvGridCodeStatus, 0x7FFF);
+  LW(ch, l_u8, EvInverterState, SLEEPSTATE_ON);
+  LW(ch, l_u8, EvPwrCtrlModeAck, 0xFF);
+  LW(ch, l_u16, EvPwrCtrlModesAvail, 0x0000);
+  LW(ch, l_u16, EvPwrCtrlUnitsAvail, PCUNIT_BITMASK(PCUNITS_TOT_WATT) | PCUNIT_BITMASK(PCUNITS_TOT_WATT_VAR));
 
   //testing info codes {
   //set_info_code(ch, EVINFOENTRY_VERSION_FAILS);
@@ -179,6 +186,7 @@ void InitializeLINvariables(uint8_t ch) {
   } */
 
   ids_init(ch);
+  j3072_init(ch);
 }
 
 void __op_timeout(uint8_t ch)  {
@@ -364,6 +372,19 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
     LFC(ch, SeID);
   }
 
+  if (LFT(ch, EvJ3072)) {
+    on_j3072_frame_xmit(ch);
+    LFC(ch, EvJ3072);
+  }
+  if (LFT(ch, SeJ3072)) {
+    on_j3072_frame_receipt(ch);
+    LFC(ch, SeJ3072);
+  }
+
+  if (ev_id_status[ch] == DATA && ev_j3072_status[ch] == SUNSPEC) {   //all ID and certification data has been transmitted and received
+    LW(ch, l_u16, EvPwrCtrlModesAvail, PCMODES_BITMASK(PCMODES_TGC) | PCMODES_BITMASK(PCMODES_TGC_R));
+  }
+
   if ((SeNomVoltagesRcvd[ch] && SeMaxCurrentsRcvd[ch]) && ((SeNomVoltsLN[ch] != NotAvail_16bit) || (SeNomVoltsLL[ch] != NotAvail_16bit)))  {  // Perform initialization checks only after all information has been read to prevent unread data from bypassing checks R#:9.6.3.1
     InitChecks(ch);
     // Clear any Restart info codes
@@ -512,7 +533,15 @@ void InitializeLINvariables(uint8_t ch) {
   SchedulePicker[ch]     = StartNull;
   pvers_rcvd[ch]         = FALSE;
 
+  LW(ch, l_u16, SeGridCodeRequest, 0x7FFF);
+  LW(ch, l_u8, SeInverterRequest, 0xF);
+  LW(ch, l_u8, SePwrCtrlMode, PCMODES_NORM_CHRG);
+  LW(ch, l_u8, SePwrCtrlUnits, 0xF);
+  LW(ch, l_u8, SePwrCtrlAuth, PCAUTH_NONE);
+  LW(ch, l_u8, SeTimeStamp, 0xFF);
+
   ids_init(ch);
+  j3072_init(ch);
 
   //testing info codes {
   //set_info_code(ch, SEINFOENTRY_PILOT_FAULT);
@@ -571,6 +600,9 @@ void StartScheduleOp(uint8_t ch) {
       break;
     case PVER_SLASH_1:
       LSS(ch, Op3, 0); // Start the J3068/1 Op schedule
+      break;
+    case PVER_SLASH_2:
+      LSS(ch, Op252, 0);
       break;
   }
 }
@@ -873,6 +905,15 @@ void DetermineLINCPState(uint8_t ch, SCHEDULE_PICKER_EVENTS SchedulePickerMessag
   if (LFT(ch, EvID)) {
     on_id_frame_receipt(ch);
     LFC(ch, EvID);
+  }
+
+  if (LFT(ch, SeJ3072)) {
+    on_j3072_frame_xmit(ch);
+    LFC(ch, SeJ3072);
+  }
+  if (LFT(ch, EvJ3072)) {
+    on_j3072_frame_receipt(ch);
+    LFC(ch, EvJ3072);
   }
 #pragma MESSAGE DISABLE C12056 //debug info incorrect because of optimization or inline assembler
 } // End of DetermineLINCPState (which is not all it does)

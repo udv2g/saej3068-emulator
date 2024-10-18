@@ -1,13 +1,24 @@
-function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_define, FPTR)
+function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_define, FPTR, slash)
 
 	first = true;
 	pages_sent = 1; %include page 0 in page count
 
 	string_pages_to_send = [];
 
-	define_name = [ 'NUM_', {'ID', 'DATA'}{stage +1}, '_PGS2SND' ]; %toupper(ident), '_',
+	switch slash
+	case 1
+		stages_ = {"id", "data"};
+		stages = {"ids", "data"};
+	case 2
+		stages_ = {"cert", "sunspec"};
+		stages = {"cert", "sunspec"};
+	otherwise
+		return
+end
 
-	string_pages_to_send = [string_pages_to_send, sprintf("uint8_t %s_pages_to_send[%s] = { 0, ", {'id', 'data'}{stage +1}, define_name)];
+	define_name = [ 'NUM_', toupper(stages_{stage +1}), '_PGS2SND' ]; %toupper(ident), '_',
+
+	string_pages_to_send = [string_pages_to_send, sprintf("uint8_t %s_pages_to_send[%s] = { 0, ", stages_{stage +1}, define_name)];
 
 	for page = defined_pages
 		if array{page}(1).stage == stage
@@ -34,7 +45,7 @@ function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_de
 
 	fprintf(file_handle, "  switch(page) {\n");
 	fprintf(file_handle, "    case 0:\n");
-	fprintf(file_handle, "      buffer[0] = %s;\n", [ident '_id_status[ch]']);
+	fprintf(file_handle, "      buffer[0] = %s;\n", [ident '_',{'id','j3072'}{slash},'_status[ch]']);
 	fprintf(file_handle, "      buffer[1] = %2d; //pages to be sent\n", pages_sent);
 	fprintf(file_handle, "      buffer[2] = %2d; //first (non zero) page\n", start_page);
 	fprintf(file_handle, "      buffer[3] = %2d; //last page\n", end_page);
@@ -58,7 +69,7 @@ function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_de
 						last_bitfield_byte = array{page}(index).start_position;
 						mask = bitset(mask, 8 - (array{page}(index).start_position + 1), 0);
 					end
-					fprintf(file_handle, "      buffer[%d] &= ~((~%s & 0b%s) << %d);\n", array{page}(index).start_position, ["(act_", {"ids", "data"}{stage +1}, "_xmit[ch]->v).", array{page}(index).label], dec2bin((2^(bytes_bits)-1),8), array{page}(index).bit_start);
+					fprintf(file_handle, "      buffer[%d] &= ~((~%s & 0b%s) << %d);\n", array{page}(index).start_position, ["(act_", stages{stage +1}, "_xmit[ch]->v).", array{page}(index).label], dec2bin((2^(bytes_bits)-1),8), array{page}(index).bit_start);
 				else
 					switch bytes_bits
 						case {1, 2, 3, 4}
@@ -69,7 +80,7 @@ function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_de
 								else
 									shift_string = sprintf(" >> %d", 8*(i-1));
 								end
-								fprintf(file_handle, "      buffer[%d] = (%s) & 0xFF;\n", array{page}(index).start_position + i - 1, [["(act_", {"ids", "data"}{stage +1}, "_xmit[ch]->v).", array{page}(index).label] shift_string]);
+								fprintf(file_handle, "      buffer[%d] = (%s) & 0xFF;\n", array{page}(index).start_position + i - 1, [["(act_", stages{stage +1}, "_xmit[ch]->v).", array{page}(index).label] shift_string]);
 								mask = bitset(mask, 8 - (array{page}(index).start_position + i), 0);
 							end
 						otherwise
@@ -78,7 +89,7 @@ function gen_xmit_switch(file_handle, ident, stage, defined_pages, array, gen_de
 								fdisp(file_handle, "      copy_buffer_data(source_ptr, dest_ptr, copy_size, false); //call copy on previous string data");
 							end
 							first_string = false;
-							fprintf(file_handle, "      source_ptr = (uint8_t %s) %s", FPTR, ["(act_", {"ids", "data"}{stage +1}, "_xmit[ch]->s).", array{page}(index).label]);
+							fprintf(file_handle, "      source_ptr = (uint8_t %s) %s", FPTR, ["(act_", stages{stage +1}, "_xmit[ch]->s).", array{page}(index).label]);
 							if string_position ~= 0
 								fprintf(file_handle, " + %d",string_position);
 							end

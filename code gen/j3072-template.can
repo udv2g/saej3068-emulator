@@ -1,0 +1,127 @@
+/*@!Encoding:1252*/
+includes
+{
+  
+}
+
+variables
+{
+  const int false = 0;
+  const int true = 1;
+
+  enum J3072_STATUS_TYPE {CERT_NOT_READY = 0, CERT_INCOMPLETE = 1, CERT_COMPLETE = 2, SUNSPEC = 3} se_j3072_status = CERT_INCOMPLETE, ev_j3072_status = CERT_INCOMPLETE;
+
+  char J3072_Status_strings[4][20] = {"CERT_NOT_READY", "CERT_INCOMPLETE", "CERT_COMPLETE", "SUNSPEC" };
+  char xmit_crc_status[3][20] = {"Not Transmitted", "Transmitted", "Reserved"};
+  char rcv_crc_status[5][20] = {"Not Checked", "Matches", "Does not Match", "No Full Cycle", "Reserved"};
+
+  byte ev_buffer[7], se_buffer[7];
+  byte ev_j3072_page_number, se_j3072_page_number;
+
+  int J3072window;
+
+  ///>Declarations
+
+  ///<Declarations
+
+}
+
+on start
+{
+  J3072window = writeCreate("J3072");
+}
+
+on linFrame SeJ3072
+{
+  se_j3072_page_number = this.SeJ3072Page;
+
+  se_buffer[0] = this.SeJ3072ByteA;
+  se_buffer[1] = this.SeJ3072ByteB;
+  se_buffer[2] = this.SeJ3072ByteC;
+  se_buffer[3] = this.SeJ3072ByteD;
+  se_buffer[4] = this.SeJ3072ByteE;
+  se_buffer[5] = this.SeJ3072ByteF;
+  se_buffer[6] = this.SeJ3072ByteG;
+
+  if ((se_j3072_status == CERT_INCOMPLETE) || (se_j3072_status == CERT_COMPLETE)) {
+    se_cert_parse();
+  } else{
+
+  }
+}
+
+on linFrame EvJ3072
+{
+  ev_j3072_page_number = this.EvJ3072Page;
+
+  ev_buffer[0] = this.EvJ3072ByteA;
+  ev_buffer[1] = this.EvJ3072ByteB;
+  ev_buffer[2] = this.EvJ3072ByteC;
+  ev_buffer[3] = this.EvJ3072ByteD;
+  ev_buffer[4] = this.EvJ3072ByteE;
+  ev_buffer[5] = this.EvJ3072ByteF;
+  ev_buffer[6] = this.EvJ3072ByteG;
+
+  if ((ev_j3072_status == CERT_INCOMPLETE) || (ev_j3072_status == CERT_COMPLETE)) {
+    ev_cert_parse();
+  } else{
+
+  }
+}
+
+void copy_page(byte source[], char destination[], byte src_offset, byte dest_offset, byte size, byte string) {
+  int i;
+
+  for(i=0; i<size; i++) {
+    destination[i+dest_offset] = source[i+src_offset];
+    if (string) {
+        if (source[i] == 0xFF)  {
+          destination[i+dest_offset] = '\0';
+        }
+  }
+  }
+}
+
+void se_cert_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(J3072window,0xFF,0x5D,0x00);
+
+  ///>se_cert_parse
+
+  ///<se_cert_parse
+
+  if ((pgs_read == pgs_to_read) && (se_j3072_page_number == last_pg))  {
+
+  }
+
+}
+
+void ev_cert_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(J3072window,0x00,0x2A,0xFF);
+
+  ///>ev_cert_parse
+
+  ///<ev_cert_parse
+
+  if ((pgs_read == pgs_to_read) && (ev_j3072_page_number == last_pg))  {
+
+  }
+}
+
+
+

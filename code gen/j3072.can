@@ -1,0 +1,589 @@
+/*@!Encoding:1252*/
+includes
+{
+  
+}
+
+variables
+{
+  const int false = 0;
+  const int true = 1;
+
+  enum J3072_STATUS_TYPE {CERT_NOT_READY = 0, CERT_INCOMPLETE = 1, CERT_COMPLETE = 2, SUNSPEC = 3} se_j3072_status = CERT_INCOMPLETE, ev_j3072_status = CERT_INCOMPLETE;
+
+  char J3072_Status_strings[4][20] = {"CERT_NOT_READY", "CERT_INCOMPLETE", "CERT_COMPLETE", "SUNSPEC" };
+  char xmit_crc_status[3][20] = {"Not Transmitted", "Transmitted", "Reserved"};
+  char rcv_crc_status[5][20] = {"Not Checked", "Matches", "Does not Match", "No Full Cycle", "Reserved"};
+
+  byte ev_buffer[7], se_buffer[7];
+  byte ev_j3072_page_number, se_j3072_page_number;
+
+  int J3072window;
+
+  ///>Declarations
+
+  word EvPwrCtrlModesSpt;
+  word EvSupGridCode1;
+  word EvVRefL1N;
+  word EvVRefLL;
+  word EvWMaxRtg;
+  word EvVAMaxRtg;
+  word EvIvarMaxRtg;
+  word EvAvarMaxRtg;
+  word EvChaWMaxRtg;
+  word EvChaVAMaxRtg;
+  word SePwrCtrlModesSpt;
+  word SeWMaxEVSE;
+  word SeChaWMaxEVSE;
+  word SeIvarMaxEVSE;
+  word SeAvarMaxEVSE;
+  byte SeFreqOver1FreqA;
+  word SeFreqOver1TimeA;
+  byte SeFreqOver2FreqA;
+  word SeFreqOver2TimeA;
+  byte SeFreqUnder1FreqA;
+  word SeFreqUnder1TimeA;
+  byte SeFreqUnder2FreqA;
+  word SeFreqUnder2TimeA;
+  word SeLV3hLV2lLNA;
+  word SeLV3TimeA;
+  word SeLV2hLV1lLNA;
+  word SeLV2TimeA;
+  word SeLV1hLNA;
+  word SeLV1TimeA;
+  word SeHV1lLNA;
+  word SeHV1TimeA;
+  word SeHV1hHV2lLNA;
+  word SeHV2TimeA;
+
+  char SeUpdateTimeEVSE[8];
+  char EvInverterSMN[33];
+  char EvCertificationDate[8];
+  char EvUpdateTime[8];
+  ///<Declarations
+
+}
+
+on start
+{
+  J3072window = writeCreate("J3072");
+}
+
+on linFrame SeJ3072
+{
+  se_j3072_page_number = this.SeJ3072Page;
+
+  se_buffer[0] = this.SeJ3072ByteA;
+  se_buffer[1] = this.SeJ3072ByteB;
+  se_buffer[2] = this.SeJ3072ByteC;
+  se_buffer[3] = this.SeJ3072ByteD;
+  se_buffer[4] = this.SeJ3072ByteE;
+  se_buffer[5] = this.SeJ3072ByteF;
+  se_buffer[6] = this.SeJ3072ByteG;
+
+  if ((se_j3072_status == CERT_INCOMPLETE) || (se_j3072_status == CERT_COMPLETE)) {
+    se_cert_parse();
+  } else{
+
+  }
+}
+
+on linFrame EvJ3072
+{
+  ev_j3072_page_number = this.EvJ3072Page;
+
+  ev_buffer[0] = this.EvJ3072ByteA;
+  ev_buffer[1] = this.EvJ3072ByteB;
+  ev_buffer[2] = this.EvJ3072ByteC;
+  ev_buffer[3] = this.EvJ3072ByteD;
+  ev_buffer[4] = this.EvJ3072ByteE;
+  ev_buffer[5] = this.EvJ3072ByteF;
+  ev_buffer[6] = this.EvJ3072ByteG;
+
+  if ((ev_j3072_status == CERT_INCOMPLETE) || (ev_j3072_status == CERT_COMPLETE)) {
+    ev_cert_parse();
+  } else{
+
+  }
+}
+
+void copy_page(byte source[], char destination[], byte src_offset, byte dest_offset, byte size, byte string) {
+  int i;
+
+  for(i=0; i<size; i++) {
+    destination[i+dest_offset] = source[i+src_offset];
+    if (string) {
+        if (source[i] == 0xFF)  {
+          destination[i+dest_offset] = '\0';
+        }
+  }
+  }
+}
+
+void se_cert_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(J3072window,0xFF,0x5D,0x00);
+
+  ///>se_cert_parse
+  switch(se_j3072_page_number) {
+    case 0:
+      pgs_to_read = se_buffer[1];
+      se_j3072_status = (enum J3072_STATUS_TYPE)se_buffer[0];
+      last_pg = se_buffer[3];
+      pgs_read = 1;
+      first_pg = se_buffer[2];
+      se_crc = (se_buffer[4] >> 4) & 0x0F;
+      ev_crc = (se_buffer[4]) & 0x0F;
+      writeLineEx(J3072window,0,"%f-SE Status %s", timenow()/100000.0, J3072_Status_strings[se_j3072_status]);
+      writeLineEx(J3072window,0,"%f-SE Pages: First %d; Last %d; Number %d", timenow()/100000.0, first_pg, last_pg, pgs_to_read);
+      if (se_crc > 1) {
+        se_crc = 2;
+        }
+        if (ev_crc > 1) {
+          if (ev_crc < 0xE)  {
+            ev_crc = 4; //Reserved
+          } else  {
+            ev_crc = ev_crc - 12;
+          }
+        }
+      writeLineEx(J3072window,0,"%f-SE CRC Stat: %s; EV CRC Stat: %s", timenow()/100000.0, xmit_crc_status[se_crc], rcv_crc_status[ev_crc]);
+      break;
+    case 1:
+      SePwrCtrlModesSpt = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SePwrCtrlModesSpt >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SePwrCtrlModesSpt Not_Available", timenow()/100000.0);
+      } else if(SePwrCtrlModesSpt >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SePwrCtrlModesSpt Error", timenow()/100000.0);
+      } else if(SePwrCtrlModesSpt >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SePwrCtrlModesSpt Reserved 0x%X", timenow()/100000.0, (SePwrCtrlModesSpt));
+      } else {
+        writeLineEx(J3072window,0,"%f-SePwrCtrlModesSpt 0x%02X ", timenow()/100000.0, (SePwrCtrlModesSpt));
+      }
+      SeWMaxEVSE = ((word)se_buffer[3] << 8) | ((word)se_buffer[2]);
+      if(SeWMaxEVSE >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeWMaxEVSE Not_Available", timenow()/100000.0);
+      } else if(SeWMaxEVSE >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeWMaxEVSE Error", timenow()/100000.0);
+      } else if(SeWMaxEVSE >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeWMaxEVSE Reserved 0x%X", timenow()/100000.0, (SeWMaxEVSE));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeWMaxEVSE %d W", timenow()/100000.0, (SeWMaxEVSE * 16) - 500000);
+      }
+      SeChaWMaxEVSE = ((word)se_buffer[5] << 8) | ((word)se_buffer[4]);
+      if(SeChaWMaxEVSE >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeChaWMaxEVSE Not_Available", timenow()/100000.0);
+      } else if(SeChaWMaxEVSE >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeChaWMaxEVSE Error", timenow()/100000.0);
+      } else if(SeChaWMaxEVSE >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeChaWMaxEVSE Reserved 0x%X", timenow()/100000.0, (SeChaWMaxEVSE));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeChaWMaxEVSE %d W", timenow()/100000.0, (SeChaWMaxEVSE * 16) - 500000);
+      }
+      break;
+    case 2:
+      SeIvarMaxEVSE = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SeIvarMaxEVSE >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeIvarMaxEVSE Not_Available", timenow()/100000.0);
+      } else if(SeIvarMaxEVSE >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeIvarMaxEVSE Error", timenow()/100000.0);
+      } else if(SeIvarMaxEVSE >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeIvarMaxEVSE Reserved 0x%X", timenow()/100000.0, (SeIvarMaxEVSE));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeIvarMaxEVSE %d VA", timenow()/100000.0, (SeIvarMaxEVSE * 16) - 500000);
+      }
+      SeAvarMaxEVSE = ((word)se_buffer[3] << 8) | ((word)se_buffer[2]);
+      if(SeAvarMaxEVSE >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeAvarMaxEVSE Not_Available", timenow()/100000.0);
+      } else if(SeAvarMaxEVSE >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeAvarMaxEVSE Error", timenow()/100000.0);
+      } else if(SeAvarMaxEVSE >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeAvarMaxEVSE Reserved 0x%X", timenow()/100000.0, (SeAvarMaxEVSE));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeAvarMaxEVSE %d VA", timenow()/100000.0, (SeAvarMaxEVSE * 16) - 500000);
+      }
+      break;
+    case 3:
+      copy_page(se_buffer, SeUpdateTimeEVSE, 0, 0, 7, true);
+      break;
+    case 4:
+      SeFreqOver1FreqA = ((byte)se_buffer[0]);
+      if(SeFreqOver1FreqA >= 0xFF){
+        writeLineEx(J3072window,0,"%f-SeFreqOver1FreqA Not_Available", timenow()/100000.0);
+      } else if(SeFreqOver1FreqA >= 0xFE){
+        writeLineEx(J3072window,0,"%f-SeFreqOver1FreqA Error", timenow()/100000.0);
+      } else if(SeFreqOver1FreqA >= 0xFB){
+        writeLineEx(J3072window,0,"%f-SeFreqOver1FreqA Reserved 0x%X", timenow()/100000.0, (SeFreqOver1FreqA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqOver1FreqA %.3lf Hz", timenow()/100000.0, ((double)SeFreqOver1FreqA * 0.100000) - -42.500000);
+      }
+      SeFreqOver1TimeA = ((word)se_buffer[2] << 8) | ((word)se_buffer[1]);
+      if(SeFreqOver1TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeFreqOver1TimeA Not_Available", timenow()/100000.0);
+      } else if(SeFreqOver1TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeFreqOver1TimeA Error", timenow()/100000.0);
+      } else if(SeFreqOver1TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeFreqOver1TimeA Reserved 0x%X", timenow()/100000.0, (SeFreqOver1TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqOver1TimeA %.3lf seconds", timenow()/100000.0, ((double)SeFreqOver1TimeA * 0.010000));
+      }
+      SeFreqOver2FreqA = ((byte)se_buffer[3]);
+      if(SeFreqOver2FreqA >= 0xFF){
+        writeLineEx(J3072window,0,"%f-SeFreqOver2FreqA Not_Available", timenow()/100000.0);
+      } else if(SeFreqOver2FreqA >= 0xFE){
+        writeLineEx(J3072window,0,"%f-SeFreqOver2FreqA Error", timenow()/100000.0);
+      } else if(SeFreqOver2FreqA >= 0xFB){
+        writeLineEx(J3072window,0,"%f-SeFreqOver2FreqA Reserved 0x%X", timenow()/100000.0, (SeFreqOver2FreqA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqOver2FreqA %.3lf Hz", timenow()/100000.0, ((double)SeFreqOver2FreqA * 0.100000) - -42.500000);
+      }
+      SeFreqOver2TimeA = ((word)se_buffer[5] << 8) | ((word)se_buffer[4]);
+      if(SeFreqOver2TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeFreqOver2TimeA Not_Available", timenow()/100000.0);
+      } else if(SeFreqOver2TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeFreqOver2TimeA Error", timenow()/100000.0);
+      } else if(SeFreqOver2TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeFreqOver2TimeA Reserved 0x%X", timenow()/100000.0, (SeFreqOver2TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqOver2TimeA %.3lf seconds", timenow()/100000.0, ((double)SeFreqOver2TimeA * 0.010000));
+      }
+      break;
+    case 5:
+      SeFreqUnder1FreqA = ((byte)se_buffer[0]);
+      if(SeFreqUnder1FreqA >= 0xFF){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1FreqA Not_Available", timenow()/100000.0);
+      } else if(SeFreqUnder1FreqA >= 0xFE){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1FreqA Error", timenow()/100000.0);
+      } else if(SeFreqUnder1FreqA >= 0xFB){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1FreqA Reserved 0x%X", timenow()/100000.0, (SeFreqUnder1FreqA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1FreqA %.3lf Hz", timenow()/100000.0, ((double)SeFreqUnder1FreqA * 0.100000) - -42.500000);
+      }
+      SeFreqUnder1TimeA = ((word)se_buffer[2] << 8) | ((word)se_buffer[1]);
+      if(SeFreqUnder1TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1TimeA Not_Available", timenow()/100000.0);
+      } else if(SeFreqUnder1TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1TimeA Error", timenow()/100000.0);
+      } else if(SeFreqUnder1TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1TimeA Reserved 0x%X", timenow()/100000.0, (SeFreqUnder1TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqUnder1TimeA %.3lf seconds", timenow()/100000.0, ((double)SeFreqUnder1TimeA * 0.010000));
+      }
+      SeFreqUnder2FreqA = ((byte)se_buffer[3]);
+      if(SeFreqUnder2FreqA >= 0xFF){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2FreqA Not_Available", timenow()/100000.0);
+      } else if(SeFreqUnder2FreqA >= 0xFE){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2FreqA Error", timenow()/100000.0);
+      } else if(SeFreqUnder2FreqA >= 0xFB){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2FreqA Reserved 0x%X", timenow()/100000.0, (SeFreqUnder2FreqA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2FreqA %.3lf Hz", timenow()/100000.0, ((double)SeFreqUnder2FreqA * 0.100000) - -42.500000);
+      }
+      SeFreqUnder2TimeA = ((word)se_buffer[5] << 8) | ((word)se_buffer[4]);
+      if(SeFreqUnder2TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2TimeA Not_Available", timenow()/100000.0);
+      } else if(SeFreqUnder2TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2TimeA Error", timenow()/100000.0);
+      } else if(SeFreqUnder2TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2TimeA Reserved 0x%X", timenow()/100000.0, (SeFreqUnder2TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeFreqUnder2TimeA %.3lf seconds", timenow()/100000.0, ((double)SeFreqUnder2TimeA * 0.010000));
+      }
+      break;
+    case 6:
+      SeLV3hLV2lLNA = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SeLV3hLV2lLNA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeLV3hLV2lLNA Not_Available", timenow()/100000.0);
+      } else if(SeLV3hLV2lLNA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeLV3hLV2lLNA Error", timenow()/100000.0);
+      } else if(SeLV3hLV2lLNA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeLV3hLV2lLNA Reserved 0x%X", timenow()/100000.0, (SeLV3hLV2lLNA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeLV3hLV2lLNA %.3lf Volts", timenow()/100000.0, ((double)SeLV3hLV2lLNA * 0.050000));
+      }
+      SeLV3TimeA = ((word)se_buffer[3] << 8) | ((word)se_buffer[2]);
+      if(SeLV3TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeLV3TimeA Not_Available", timenow()/100000.0);
+      } else if(SeLV3TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeLV3TimeA Error", timenow()/100000.0);
+      } else if(SeLV3TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeLV3TimeA Reserved 0x%X", timenow()/100000.0, (SeLV3TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeLV3TimeA %.3lf seconds", timenow()/100000.0, ((double)SeLV3TimeA * 0.010000));
+      }
+      SeLV2hLV1lLNA = ((word)se_buffer[5] << 8) | ((word)se_buffer[4]);
+      if(SeLV2hLV1lLNA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeLV2hLV1lLNA Not_Available", timenow()/100000.0);
+      } else if(SeLV2hLV1lLNA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeLV2hLV1lLNA Error", timenow()/100000.0);
+      } else if(SeLV2hLV1lLNA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeLV2hLV1lLNA Reserved 0x%X", timenow()/100000.0, (SeLV2hLV1lLNA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeLV2hLV1lLNA %.3lf Volts", timenow()/100000.0, ((double)SeLV2hLV1lLNA * 0.050000));
+      }
+      break;
+    case 7:
+      SeLV2TimeA = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SeLV2TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeLV2TimeA Not_Available", timenow()/100000.0);
+      } else if(SeLV2TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeLV2TimeA Error", timenow()/100000.0);
+      } else if(SeLV2TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeLV2TimeA Reserved 0x%X", timenow()/100000.0, (SeLV2TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeLV2TimeA %.3lf seconds", timenow()/100000.0, ((double)SeLV2TimeA * 0.010000));
+      }
+      SeLV1hLNA = ((word)se_buffer[3] << 8) | ((word)se_buffer[2]);
+      if(SeLV1hLNA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeLV1hLNA Not_Available", timenow()/100000.0);
+      } else if(SeLV1hLNA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeLV1hLNA Error", timenow()/100000.0);
+      } else if(SeLV1hLNA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeLV1hLNA Reserved 0x%X", timenow()/100000.0, (SeLV1hLNA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeLV1hLNA %.3lf Volts", timenow()/100000.0, ((double)SeLV1hLNA * 0.050000));
+      }
+      SeLV1TimeA = ((word)se_buffer[5] << 8) | ((word)se_buffer[4]);
+      if(SeLV1TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeLV1TimeA Not_Available", timenow()/100000.0);
+      } else if(SeLV1TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeLV1TimeA Error", timenow()/100000.0);
+      } else if(SeLV1TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeLV1TimeA Reserved 0x%X", timenow()/100000.0, (SeLV1TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeLV1TimeA %.3lf seconds", timenow()/100000.0, ((double)SeLV1TimeA * 0.010000));
+      }
+      break;
+    case 8:
+      SeHV1lLNA = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SeHV1lLNA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeHV1lLNA Not_Available", timenow()/100000.0);
+      } else if(SeHV1lLNA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeHV1lLNA Error", timenow()/100000.0);
+      } else if(SeHV1lLNA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeHV1lLNA Reserved 0x%X", timenow()/100000.0, (SeHV1lLNA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeHV1lLNA %.3lf Volts", timenow()/100000.0, ((double)SeHV1lLNA * 0.050000));
+      }
+      SeHV1TimeA = ((word)se_buffer[3] << 8) | ((word)se_buffer[2]);
+      if(SeHV1TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeHV1TimeA Not_Available", timenow()/100000.0);
+      } else if(SeHV1TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeHV1TimeA Error", timenow()/100000.0);
+      } else if(SeHV1TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeHV1TimeA Reserved 0x%X", timenow()/100000.0, (SeHV1TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeHV1TimeA %.3lf seconds", timenow()/100000.0, ((double)SeHV1TimeA * 0.010000));
+      }
+      break;
+    case 9:
+      SeHV1hHV2lLNA = ((word)se_buffer[1] << 8) | ((word)se_buffer[0]);
+      if(SeHV1hHV2lLNA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeHV1hHV2lLNA Not_Available", timenow()/100000.0);
+      } else if(SeHV1hHV2lLNA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeHV1hHV2lLNA Error", timenow()/100000.0);
+      } else if(SeHV1hHV2lLNA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeHV1hHV2lLNA Reserved 0x%X", timenow()/100000.0, (SeHV1hHV2lLNA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeHV1hHV2lLNA %.3lf Volts", timenow()/100000.0, ((double)SeHV1hHV2lLNA * 0.050000));
+      }
+      SeHV2TimeA = ((word)se_buffer[3] << 8) | ((word)se_buffer[2]);
+      if(SeHV2TimeA >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-SeHV2TimeA Not_Available", timenow()/100000.0);
+      } else if(SeHV2TimeA >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-SeHV2TimeA Error", timenow()/100000.0);
+      } else if(SeHV2TimeA >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-SeHV2TimeA Reserved 0x%X", timenow()/100000.0, (SeHV2TimeA));
+      } else {
+        writeLineEx(J3072window,0,"%f-SeHV2TimeA %.3lf seconds", timenow()/100000.0, ((double)SeHV2TimeA * 0.010000));
+      }
+      break;
+  }
+  ///<se_cert_parse
+
+  if ((pgs_read == pgs_to_read) && (se_j3072_page_number == last_pg))  {
+
+  }
+
+}
+
+void ev_cert_parse() {
+  byte pgs_to_read = 255;
+  byte pgs_read = 0;
+  byte last_pg = 255;
+  byte first_pg;
+  byte ev_crc, se_crc;
+
+  pgs_read++;
+
+  writeTextColor(J3072window,0x00,0x2A,0xFF);
+
+  ///>ev_cert_parse
+  switch(ev_j3072_page_number) {
+    case 0:
+      pgs_to_read = ev_buffer[1];
+      ev_j3072_status = (enum J3072_STATUS_TYPE)ev_buffer[0];
+      last_pg = ev_buffer[3];
+      pgs_read = 1;
+      first_pg = ev_buffer[2];
+      ev_crc = (ev_buffer[4] >> 4) & 0x0F;
+      se_crc = (ev_buffer[4]) & 0x0F;
+      writeLineEx(J3072window,0,"%f-EV Status %s", timenow()/100000.0, J3072_Status_strings[ev_j3072_status]);
+      writeLineEx(J3072window,0,"%f-EV Pages: First %d; Last %d; Number %d", timenow()/100000.0, first_pg, last_pg, pgs_to_read);
+      if (ev_crc > 1) {
+        ev_crc = 2;
+        }
+        if (se_crc > 1) {
+          if (se_crc < 0xE)  {
+            se_crc = 4; //Reserved
+          } else  {
+            se_crc = se_crc - 12;
+          }
+        }
+      writeLineEx(J3072window,0,"%f-EV CRC Stat: %s; SE CRC Stat: %s", timenow()/100000.0, xmit_crc_status[ev_crc], rcv_crc_status[se_crc]);
+      break;
+    case 1:
+      EvPwrCtrlModesSpt = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvPwrCtrlModesSpt >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvPwrCtrlModesSpt Not_Available", timenow()/100000.0);
+      } else if(EvPwrCtrlModesSpt >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvPwrCtrlModesSpt Error", timenow()/100000.0);
+      } else if(EvPwrCtrlModesSpt >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvPwrCtrlModesSpt Reserved 0x%X", timenow()/100000.0, (EvPwrCtrlModesSpt));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvPwrCtrlModesSpt 0x%02X ", timenow()/100000.0, (EvPwrCtrlModesSpt));
+      }
+      EvSupGridCode1 = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvSupGridCode1 >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvSupGridCode1 Not_Available", timenow()/100000.0);
+      } else if(EvSupGridCode1 >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvSupGridCode1 Error", timenow()/100000.0);
+      } else if(EvSupGridCode1 >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvSupGridCode1 Reserved 0x%X", timenow()/100000.0, (EvSupGridCode1));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvSupGridCode1 0x%02X ", timenow()/100000.0, (EvSupGridCode1));
+      }
+      break;
+    case 5:
+      EvVRefL1N = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvVRefL1N >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvVRefL1N Not_Available", timenow()/100000.0);
+      } else if(EvVRefL1N >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvVRefL1N Error", timenow()/100000.0);
+      } else if(EvVRefL1N >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvVRefL1N Reserved 0x%X", timenow()/100000.0, (EvVRefL1N));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvVRefL1N %.3lf Volts", timenow()/100000.0, ((double)EvVRefL1N * 0.050000));
+      }
+      EvVRefLL = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvVRefLL >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvVRefLL Not_Available", timenow()/100000.0);
+      } else if(EvVRefLL >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvVRefLL Error", timenow()/100000.0);
+      } else if(EvVRefLL >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvVRefLL Reserved 0x%X", timenow()/100000.0, (EvVRefLL));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvVRefLL %.3lf Volts", timenow()/100000.0, ((double)EvVRefLL * 0.050000));
+      }
+      break;
+    case 6:
+      EvWMaxRtg = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvWMaxRtg >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvWMaxRtg Not_Available", timenow()/100000.0);
+      } else if(EvWMaxRtg >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvWMaxRtg Error", timenow()/100000.0);
+      } else if(EvWMaxRtg >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvWMaxRtg Reserved 0x%X", timenow()/100000.0, (EvWMaxRtg));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvWMaxRtg %d W", timenow()/100000.0, (EvWMaxRtg * 16) - 500000);
+      }
+      EvVAMaxRtg = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvVAMaxRtg >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvVAMaxRtg Not_Available", timenow()/100000.0);
+      } else if(EvVAMaxRtg >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvVAMaxRtg Error", timenow()/100000.0);
+      } else if(EvVAMaxRtg >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvVAMaxRtg Reserved 0x%X", timenow()/100000.0, (EvVAMaxRtg));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvVAMaxRtg %d VA", timenow()/100000.0, (EvVAMaxRtg * 16) - 500000);
+      }
+      EvIvarMaxRtg = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvIvarMaxRtg >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvIvarMaxRtg Not_Available", timenow()/100000.0);
+      } else if(EvIvarMaxRtg >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvIvarMaxRtg Error", timenow()/100000.0);
+      } else if(EvIvarMaxRtg >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvIvarMaxRtg Reserved 0x%X", timenow()/100000.0, (EvIvarMaxRtg));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvIvarMaxRtg %d VA", timenow()/100000.0, (EvIvarMaxRtg * 16) - 500000);
+      }
+      break;
+    case 7:
+      EvAvarMaxRtg = ((word)ev_buffer[1] << 8) | ((word)ev_buffer[0]);
+      if(EvAvarMaxRtg >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvAvarMaxRtg Not_Available", timenow()/100000.0);
+      } else if(EvAvarMaxRtg >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvAvarMaxRtg Error", timenow()/100000.0);
+      } else if(EvAvarMaxRtg >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvAvarMaxRtg Reserved 0x%X", timenow()/100000.0, (EvAvarMaxRtg));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvAvarMaxRtg %d VA", timenow()/100000.0, (EvAvarMaxRtg * 16) - 500000);
+      }
+      EvChaWMaxRtg = ((word)ev_buffer[3] << 8) | ((word)ev_buffer[2]);
+      if(EvChaWMaxRtg >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvChaWMaxRtg Not_Available", timenow()/100000.0);
+      } else if(EvChaWMaxRtg >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvChaWMaxRtg Error", timenow()/100000.0);
+      } else if(EvChaWMaxRtg >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvChaWMaxRtg Reserved 0x%X", timenow()/100000.0, (EvChaWMaxRtg));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvChaWMaxRtg %d W", timenow()/100000.0, (EvChaWMaxRtg * 16) - 500000);
+      }
+      EvChaVAMaxRtg = ((word)ev_buffer[5] << 8) | ((word)ev_buffer[4]);
+      if(EvChaVAMaxRtg >= 0xFF00){
+        writeLineEx(J3072window,0,"%f-EvChaVAMaxRtg Not_Available", timenow()/100000.0);
+      } else if(EvChaVAMaxRtg >= 0xFE00){
+        writeLineEx(J3072window,0,"%f-EvChaVAMaxRtg Error", timenow()/100000.0);
+      } else if(EvChaVAMaxRtg >= 0xFB00){
+        writeLineEx(J3072window,0,"%f-EvChaVAMaxRtg Reserved 0x%X", timenow()/100000.0, (EvChaVAMaxRtg));
+      } else {
+        writeLineEx(J3072window,0,"%f-EvChaVAMaxRtg %d VA", timenow()/100000.0, (EvChaVAMaxRtg * 16) - 500000);
+      }
+      break;
+    case 8:
+      copy_page(ev_buffer, EvInverterSMN, 0, 0, 7, true);
+      break;
+    case 9:
+      copy_page(ev_buffer, EvInverterSMN, 0, 7, 7, true);
+      break;
+    case 10:
+      copy_page(ev_buffer, EvInverterSMN, 0, 14, 7, true);
+      break;
+    case 11:
+      copy_page(ev_buffer, EvInverterSMN, 0, 21, 7, true);
+      break;
+    case 12:
+      copy_page(ev_buffer, EvInverterSMN, 0, 28, 4, true);
+      break;
+    case 13:
+      copy_page(ev_buffer, EvCertificationDate, 0, 0, 7, true);
+      break;
+    case 14:
+      copy_page(ev_buffer, EvUpdateTime, 0, 0, 7, true);
+      break;
+  }
+  ///<ev_cert_parse
+
+  if ((pgs_read == pgs_to_read) && (ev_j3072_page_number == last_pg))  {
+
+  }
+}
+
+
+

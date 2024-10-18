@@ -3,9 +3,9 @@ function [page_number, stage, multipage, start_position, end_position, bit_start
 	page_number = rawarr(row,2){1};
 
 	switch rawarr(row,3){1}
-		case 'ID'
+		case {'ID', 'CERT'}
 			stage = 0;
-		case 'DATA'
+		case {'DATA', 'SUNSPEC'}
 			stage = 1;
 		case 'CRC32'
 			stage = -2;

@@ -35,7 +35,7 @@
 #define PVER_TEST_H    11
 
 //#define SUPPORTED_PVERSIONS  PVER_SLASH_2, PVER_TEST_H, PVER_TEST_G, PVER_TEST_E, PVER_TEST_F, PVER_TEST_A, PVER_TEST_B, PVER_TEST_C, PVER_TEST_D, PVER_SLASH_1,
-#define SUPPORTED_PVERSIONS  PVER_SLASH_1,
+#define SUPPORTED_PVERSIONS  PVER_SLASH_2, PVER_SLASH_1,
 //#define SUPPORTED_PVERSIONS
 
 //Connection Types
@@ -49,6 +49,59 @@
 #define CONNTP_GB_T           6
 #define CONNTP_ERROR          0xFE
 #define CONNTP_NOTSPECIFIED   0xFF
+
+//PwrCtrlUnits
+#define PCUNITS_PRCT_MAX_WATT         0x00
+#define PCUNITS_PHASE_CURRENT         0x01
+#define PCUNITS_TOT_WATT              0x02
+#define PCUNITS_PRCT_MAX_WATT_VAR     0x08
+#define PCUNITS_PHASE_CURRENT_PF      0x09
+#define PCUNITS_PHASE_CURRENT_THETA   0x0A
+#define PCUNITS_TOT_WATT_VAR          0x0B
+#define PCUNITS_NONE                  0x0F
+
+#define PCUNIT_BITMASK(x)             (1 << (x))
+
+//PwrCtrlModes
+#define PCMODES_NORM_CHRG       0xFF
+#define PCMODES_CCL             0xB4
+#define PCMODES_TC              0xA3
+#define PCMODES_TGC             0x9A
+#define PCMODES_TC_R            0x8D
+#define PCMODES_TGC_R           0x72
+#define PCMODES_AUTO_EXT        0x39
+#define PCMODES_V2LH            0x17
+#define PCMODES_PROCESSING      0x00
+#define PCMODES_RSVD_1          0xE8
+#define PCMODES_RSVD_2          0xD1
+#define PCMODES_RSVD_3          0xC6
+#define PCMODES_RSVD_4          0x65
+#define PCMODES_RSVD_5          0x5C
+#define PCMODES_RSVD_6          0x2E
+
+#define PCMODES_BITMASK(x)      (1 << (((x) >> 4) & 0x0F))
+
+//Grid Codes
+#define GRIDCODE_UNSUPPORTED    0x0000
+#define GRIDCODE_SETTINGS_A     0x0001
+#define GRIDCODE_SETTINGS_B     0x0002
+#define GRIDCODE_1741_SA        0x0003
+#define GRIDCODE_1741_SB        0x0004
+
+//Sleep States
+#define SLEEPSTATE_OFF          0x0
+#define SLEEPSTATE_DEEP_ON      0x2
+#define SLEEPSTATE_DEEP_OFF     0x3
+#define SLEEPSTATE_ON           0x4
+#define SLEEPSTATE_TRANSITION   0x5
+
+//PwrCtrlAuth
+#define PCAUTH_NONE             0xF
+#define PCAUTH_FORMING          0xA
+#define PCAUTH_DISCHARGE        0x5
+#define PCAUTH_PROCESSING       0x0
+#define PCAUTH_RSVD_1           0x6
+#define PCAUTH_RSVD_2           0x9
 
 /*<Ratings*/
 //Voltages are *10, Currents are *1
