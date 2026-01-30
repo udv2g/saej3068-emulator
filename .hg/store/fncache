@@ -1,0 +1,89 @@
+data/protocol_version_handler.c.i
+data/LIN-CP_emu_Log_2025-07-30_12-52-07.log.i
+data/bus.i
+data/code gen/CANoe.png.d
+data/globals.c.i
+data/info_code_handler.se.o.i
+data/lincp.ev.o.i
+data/code gen/field table pub PYTHON.ods.i
+data/scheduler.h.i
+data/lincp-emu.c.i
+data/code gen/~$field table pub.ods.i
+data/code gen/J3072-template-PYTHON.py.i
+data/ids_handler.h.i
+data/info_code_handler.c.i
+data/code gen/ids.can.i
+data/se.i
+data/code gen/gen_field_code.m.i
+data/j3072_handler.c.i
+data/msleep.o.i
+data/protocol_version_handler.ev.o.i
+data/code gen/ids-template-PY.py.i
+data/j3072_handler.ev.o.i
+data/code gen/parse_row.m.i
+data/lin-cp.c.i
+data/code gen/gen_parse_switch.m.i
+data/LIN-CP_emu_Log_2025-08-06_13-25-33.txt.i
+data/Draft_J3068_1.ldf.i
+data/bus.c.i
+data/lincp-emu.h.gch.d
+data/protocol_version_handler.h.i
+data/lincp-emu.h.i
+data/info_codes.h.i
+data/lin-cp.ev.o.i
+data/1p-3p_test.txt.i
+data/code gen/field table pub.ods.i
+data/Info Codes.ods.i
+data/ev.i
+data/code gen/j3072.can.i
+data/globals.h.i
+data/lincp.se.o.i
+data/msleep.c.i
+data/code gen/gen_xmit_switch.m.i
+data/protocol_version_handler.se.o.i
+data/j3072_handler.se.o.i
+data/config.h.i
+data/makefile.i
+data/code gen/CANoe.png.i
+data/globals.o.i
+data/InfoCodeStrings.h.i
+data/ids_handler.c.i
+data/info_code_handler.h.i
+data/lin-cp.se.o.i
+data/code gen/field table pub CAPL.ods.i
+data/lincp-emu.o.i
+data/code gen/InfoCodeStrings.cin.i
+data/scheduler.o.i
+data/info_code_handler.ev.o.i
+data/code gen/ids-template.can.i
+data/lincp-emu.h.gch.i
+data/LIN-CP_emu_Log_2025-08-06_13-25-33.log.i
+data/J3068-1.ldf.i
+data/j3072_handler.h.i
+data/scheduler.c.i
+data/ids_handler.ev.o.i
+data/msleep.h.i
+data/lin-cp.h.i
+data/code gen/gen_page_array.m.i
+data/.ids_handler.c.swp.i
+data/ids_handler.se.o.i
+data/lincp.c.i
+data/README.md.i
+data/code gen/j3072-template.can.i
+data/LIN-CP_emu_Log_2025-07-30_12-52-07.txt.i
+data/code gen/gen_variables.m.i
+data/code gen/out_c.c.i
+data/code gen/out_python-2.py.i
+data/crc32.o.i
+data/LIN-CP_emu_Log_2025-08-21_04-45-59.txt.i
+data/code gen/out_capl.can.i
+data/code gen/out_python-1.py.i
+data/LIN-CP_emu_Log_2025-08-21_04-45-59.log.i
+data/code gen/out.can.i
+data/code gen/out_python.py.i
+data/crc32.h.i
+data/.vscode/extensions.json.i
+data/code gen/out_c_post_pyhton.c.i
+data/code gen/out_capl-2.py.i
+data/crc32.c.i
+data/LICENSE.i
