@@ -20,7 +20,7 @@ FILE * log_file;
 FILE * asc_file;
 FILE * uart_file;
 
-void clean_up()
+void clean_up(int sig)
 {
 #ifdef GENERATE_TEXT_LOG
   fclose(log_file);

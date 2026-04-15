@@ -20,7 +20,7 @@ schedule_picker_t *schedule_picker_p;
 
 CREATE_FRAME_POINTERS();
 
-void clean_up()
+void clean_up(int sig)
 {
   shm_unlink(FRAME_MEMORY_IDENTIFIER);
 #ifdef SE_CONFIG
@@ -29,7 +29,7 @@ void clean_up()
   exit(0);
 }
 
-void sig_user_1() {   //for asynchronous tests
+void sig_user_1(int sig) {   //for asynchronous tests
   printf("SIGUSR1 Received!\n");
   //print_all_info_codes(A);
   //printf("code %X status is %x\n", 0x25, check_remote_code(0x25));
