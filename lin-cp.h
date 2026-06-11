@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "lincp-emu.h"
+#include "config.h"
 
 typedef uint8_t l_u8;
 typedef uint16_t l_u16;
@@ -280,27 +281,7 @@ typedef uint32_t l_u32;
 #define l_flg_tst_LI0_EvErrorList_flag()    all_frames[14].flag
 #define l_flg_clr_LI0_EvErrorList_flag()    all_frames[14].flag = false
 
-//SeID, 15
-#define l_u8_rd_LI0_SeIDPage()             SeID_p->SeIDPage
-#define l_u8_wr_LI0_SeIDPage(x)            SeID_p->SeIDPage = (x)
-#define l_u8_rd_LI0_SeIDByteA()            SeID_p->SeIDByteA
-#define l_u8_wr_LI0_SeIDByteA(x)           SeID_p->SeIDByteA = (x)
-#define l_u8_rd_LI0_SeIDByteB()            SeID_p->SeIDByteB
-#define l_u8_wr_LI0_SeIDByteB(x)           SeID_p->SeIDByteB = (x)
-#define l_u8_rd_LI0_SeIDByteC()            SeID_p->SeIDByteC
-#define l_u8_wr_LI0_SeIDByteC(x)           SeID_p->SeIDByteC = (x)
-#define l_u8_rd_LI0_SeIDByteD()            SeID_p->SeIDByteD
-#define l_u8_wr_LI0_SeIDByteD(x)           SeID_p->SeIDByteD = (x)
-#define l_u8_rd_LI0_SeIDByteE()            SeID_p->SeIDByteE
-#define l_u8_wr_LI0_SeIDByteE(x)           SeID_p->SeIDByteE = (x)
-#define l_u8_rd_LI0_SeIDByteF()            SeID_p->SeIDByteF
-#define l_u8_wr_LI0_SeIDByteF(x)           SeID_p->SeIDByteF = (x)
-#define l_u8_rd_LI0_SeIDByteG()            SeID_p->SeIDByteG
-#define l_u8_wr_LI0_SeIDByteG(x)           SeID_p->SeIDByteG = (x)
-#define l_flg_clr_LI0_SeID_flag()          all_frames[15].flag = false
-#define l_flg_tst_LI0_SeID_flag()          all_frames[15].flag
-
-//EvID, 16
+//EvID, 15
 #define l_u8_rd_LI0_EvIDPage()              EvID_p->EvIDPage
 #define l_u8_wr_LI0_EvIDPage(x)             EvID_p->EvIDPage = (x)
 #define l_u8_rd_LI0_EvIDByteA()             EvID_p->EvIDByteA
@@ -317,8 +298,29 @@ typedef uint32_t l_u32;
 #define l_u8_wr_LI0_EvIDByteF(x)            EvID_p->EvIDByteF = (x)
 #define l_u8_rd_LI0_EvIDByteG()             EvID_p->EvIDByteG
 #define l_u8_wr_LI0_EvIDByteG(x)            EvID_p->EvIDByteG = (x)
-#define l_flg_tst_LI0_EvID_flag()           all_frames[16].flag
-#define l_flg_clr_LI0_EvID_flag()           all_frames[16].flag = false
+#define l_flg_tst_LI0_EvID_flag()           all_frames[15].flag
+#define l_flg_clr_LI0_EvID_flag()           all_frames[15].flag = false
+
+//SeID, 16
+#define l_u8_rd_LI0_SeIDPage()             SeID_p->SeIDPage
+#define l_u8_wr_LI0_SeIDPage(x)            SeID_p->SeIDPage = (x)
+#define l_u8_rd_LI0_SeIDByteA()            SeID_p->SeIDByteA
+#define l_u8_wr_LI0_SeIDByteA(x)           SeID_p->SeIDByteA = (x)
+#define l_u8_rd_LI0_SeIDByteB()            SeID_p->SeIDByteB
+#define l_u8_wr_LI0_SeIDByteB(x)           SeID_p->SeIDByteB = (x)
+#define l_u8_rd_LI0_SeIDByteC()            SeID_p->SeIDByteC
+#define l_u8_wr_LI0_SeIDByteC(x)           SeID_p->SeIDByteC = (x)
+#define l_u8_rd_LI0_SeIDByteD()            SeID_p->SeIDByteD
+#define l_u8_wr_LI0_SeIDByteD(x)           SeID_p->SeIDByteD = (x)
+#define l_u8_rd_LI0_SeIDByteE()            SeID_p->SeIDByteE
+#define l_u8_wr_LI0_SeIDByteE(x)           SeID_p->SeIDByteE = (x)
+#define l_u8_rd_LI0_SeIDByteF()            SeID_p->SeIDByteF
+#define l_u8_wr_LI0_SeIDByteF(x)           SeID_p->SeIDByteF = (x)
+#define l_u8_rd_LI0_SeIDByteG()            SeID_p->SeIDByteG
+#define l_u8_wr_LI0_SeIDByteG(x)           SeID_p->SeIDByteG = (x)
+#define l_flg_clr_LI0_SeID_flag()          all_frames[16].flag = false
+#define l_flg_tst_LI0_SeID_flag()          all_frames[16].flag
+
 
 //Frame: 17, Reserved 
 

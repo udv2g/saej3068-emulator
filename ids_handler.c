@@ -1,7 +1,13 @@
 #include "lin-cp.h"
 #include "globals.h"
+
+//CRC 32 implementation 
+#include "crc32.h"
+#include <string.h>
+
 #include "ids_handler.h"
 #include <time.h>
+
 
 ///>Declarations
 
@@ -65,6 +71,10 @@
 #define SESETRIPSTATUS_NOT_SUPPORTED 0xFF
 
 typedef struct  {
+  uint32_t EvCrc32;   //CRC 32 implementation
+} ev_ids_vars_t;
+
+typedef struct  {
   uint8_t EvVIN[18];
   uint8_t EvEMAID[19];
   uint8_t EvEVCCID[71];
@@ -73,6 +83,10 @@ typedef struct  {
   uint8_t EvFirmwareRevision[29];
   uint8_t EvManufacturer[43];
 } ev_ids_strings_t;
+
+typedef struct  {
+  uint32_t SeCrc32; //CRC 32 implementation
+} se_ids_vars_t;
 
 typedef struct  {
   uint8_t SeEVSEID[41];
@@ -134,6 +148,8 @@ typedef struct  {
   uint16_t EvCurWattDischarge;
   uint16_t EvCurVarAbsorb;
   uint16_t EvCurVarSupply;
+  // CRC 32 implementation
+  uint32_t EvCrc32;
 } ev_data_vars_t;
 
 typedef struct  {
@@ -153,14 +169,18 @@ typedef struct  {
   uint8_t SeTimeReqNum;
   uint16_t SeHVESSRangeCalc;
   uint32_t SeHVESSEnergyCalc;
+  // CRC 32 implementation
+  uint32_t SeCrc32;
 } se_data_vars_t;
 
 typedef struct  {
   ev_ids_strings_t  s;
+  ev_ids_vars_t     v;
 } ev_ids_t;
 
 typedef struct  {
   se_ids_strings_t  s;
+  se_ids_vars_t     v;
 } se_ids_t;
 
 typedef struct  {
@@ -274,17 +294,27 @@ typedef struct  {
 
 ///<Declarations
 
+
+// CRC 32 implementation
+#define MAX_STAGE_BYTES (40 * 8) // Max pages in ID stage * 8 bytes (page# + 7 data bytes)
+static uint8_t rcv_stage_buffer[2][MAX_STAGE_BYTES];  // stores 7 byte frame data [recieve]
+static uint16_t rcv_stage_buffer_idx[2];              // index for buffer [recieve]
+static uint8_t xmit_stage_buffer[2][MAX_STAGE_BYTES]; // stores 7 byte frame data [transmit]
+static uint16_t xmit_stage_buffer_idx[2];             // index for buffer [transmit]
+
+
+
 ///>pgs_to_send
 #ifdef EV_CONFIG
-#define NUM_ID_PGS2SND 33
-uint8_t id_pages_to_send[NUM_ID_PGS2SND] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, };
-#define NUM_DATA_PGS2SND 17
-uint8_t data_pages_to_send[NUM_DATA_PGS2SND] = { 0, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, };
+#define NUM_ID_PGS2SND 34 // CRC 32 implementation +1
+uint8_t id_pages_to_send[NUM_ID_PGS2SND] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 251 };
+#define NUM_DATA_PGS2SND 18 // CRC 32 implementation +1
+uint8_t data_pages_to_send[NUM_DATA_PGS2SND] = { 0, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 251 };
 #else
-#define NUM_ID_PGS2SND 39
-uint8_t id_pages_to_send[NUM_ID_PGS2SND] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, };
-#define NUM_DATA_PGS2SND 4
-uint8_t data_pages_to_send[NUM_DATA_PGS2SND] = { 0, 97, 98, 99, };
+#define NUM_ID_PGS2SND 40 // CRC 32 implementation +1
+uint8_t id_pages_to_send[NUM_ID_PGS2SND] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 251 };
+#define NUM_DATA_PGS2SND 5 // CRC 32 implementation +1
+uint8_t data_pages_to_send[NUM_DATA_PGS2SND] = { 0, 97, 98, 99, 251 };
 #endif
 ///<pgs_to_send
 
@@ -303,12 +333,13 @@ void copy_buffer_data(uint8_t * source, uint8_t * destination, uint8_t size, boo
   }
 }
 
-void invalidate_bytes_page(uint8_t * buffer, uint8_t mask)  {
-  uint8_t i;
-
-  if (mask != 0)  {
-    for(i=6; i<=6; i--) { //>=0 not working because unsigned?
-      if (mask & 0b00000001)  {
+// CRC 32 implementation
+void invalidate_bytes_page(uint8_t * buffer, uint8_t mask) {
+  if (mask != 0) {
+    uint8_t i = 7;
+    while (i > 0) {
+      i--; 
+      if (mask & 0b00000001) {
         buffer[i] = 0xFF;
       }
       mask = mask >> 1;
@@ -370,6 +401,9 @@ void ids_init(uint8_t ch) {
   clear_data_xmit_buff(inact_data_xmit[ch]);
   clear_data_rcv_buff(act_data_rcv[ch]);
   clear_data_rcv_buff(inact_data_rcv[ch]);
+  // CRC 32 implementation 
+  rcv_stage_buffer_idx[ch] = 0;
+  xmit_stage_buffer_idx[ch] = 0;
 
   id_xmit(ch, 0); //preload the control page
 
@@ -523,7 +557,7 @@ void ids_init(uint8_t ch) {
 #define READ_RM_PAGE_NUMBER(ch)    LR(ch, l_u8, SeIDPage)
 #define READ_RM_BYTE_A(ch)         LR(ch, l_u8, SeIDByteA)
 
-#else
+#else //SE_CONFIG
 
 #define LC_ID_STATUS(ch)           se_id_status[ch]
 #define RM_ID_STATUS(ch)           ev_id_status[ch]
@@ -578,6 +612,9 @@ void on_id_frame_receipt(uint8_t ch)  {
     PrintConsoleString("====ID COMPLETE!!!!===\r\n",0);
     LC_ID_STATUS(ch) = DATA;
     first_data[ch] = true;
+
+    //CRC 32 implementation
+    rcv_stage_buffer_idx[ch] = 0;
   }
 
   if (LC_ID_STATUS(ch) == DATA ) {
@@ -628,6 +665,7 @@ void on_id_frame_xmit(uint8_t ch) {
   }
 }
 
+
 #ifdef EV_CONFIG
 
 bool id_parse(uint8_t ch) {
@@ -654,7 +692,16 @@ bool id_parse(uint8_t ch) {
   //printf("-->%c%c\n", buffer[0], buffer[1]);
   //printf("page:%d\n", l_u8_rd_LI0_EvIDPage());
 
-  pgs_read[ch]++;
+  // CRC 32 implementation
+  uint8_t current_page = READ_RM_PAGE_NUMBER(ch);
+  if (current_page > 0 && current_page < 251) {
+      if ((rcv_stage_buffer_idx[ch] + 8) <= MAX_STAGE_BYTES) {
+          rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = current_page;
+          for (int i = 0; i < 7; i++) {
+              rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = buffer[i];
+          }
+      }
+  }
 
   ///>ev_id_parse
   switch(LR(ch, l_u8, SeIDPage)) {
@@ -663,7 +710,9 @@ bool id_parse(uint8_t ch) {
       se_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-        clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+      // CRC 32 implementation
+      rcv_stage_buffer_idx[ch] = 0; 
+      clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 1:
       dest_ptr = (uint8_t *) (act_ids_rcv[ch]->s).SeEVSEID;
@@ -780,7 +829,17 @@ bool id_parse(uint8_t ch) {
     case 38:
       dest_ptr = (uint8_t *) (act_ids_rcv[ch]->s).SePublicName + 35;
       break;
+    // CRC 32 implementation
+    case 251:
+    {
+      uint32_t received_crc = ((uint32_t)buffer[3] << 24) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[1] << 8)  | ((uint32_t)buffer[0]);
+ 
+      printf("ID_STAGE Received CRC: 0x%08X\n", received_crc);
+      rcv_stage_buffer_idx[ch] = 0;
+      break;
+    }
   }
+  
   ///<ev_id_parse
 
   //printf("pointer:%p\n",dest_ptr);
@@ -789,6 +848,8 @@ bool id_parse(uint8_t ch) {
 
   if (dest_ptr != NULL) {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
+    // CRC 32 implementation
+    pgs_read[ch]++;
   }
 
   if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, SeIDPage) == last_pg[ch]))  {
@@ -804,6 +865,8 @@ bool id_parse(uint8_t ch) {
 
 void id_xmit(uint8_t ch, uint8_t page){
   static uint8_t buffer[7];
+  //CRC 32 implementation
+  memset(buffer, 0xFF, sizeof(buffer)); // rid garbage pre fill with FF
   uint8_t mask = 0;
 
   uint8_t copy_size = 7;
@@ -819,6 +882,9 @@ void id_xmit(uint8_t ch, uint8_t page){
       buffer[3] = 38; //last page
       buffer[4] = 0x00; //CRC neither sent nor read
       mask = 0b0000011;
+      // CRC 32 implementation
+      xmit_stage_buffer_idx[ch] = 0;
+
       break;
     case 1:
       source_ptr = (uint8_t *) (act_ids_xmit[ch]->s).EvVIN;
@@ -920,15 +986,35 @@ void id_xmit(uint8_t ch, uint8_t page){
     case 38:
       source_ptr = (uint8_t *) (act_ids_xmit[ch]->s).EvManufacturer + 35;
       break;
+    // CRC 32 implementation
+    case 251:
+      // Calculate the CRC over the ID string struct, excluding the CRC field itself
+      (act_ids_xmit[ch]->v).EvCrc32 = crc32(xmit_stage_buffer[ch], xmit_stage_buffer_idx[ch]);
+      buffer[0] = ((act_ids_xmit[ch]->v).EvCrc32) & 0xFF;
+      buffer[1] = ((act_ids_xmit[ch]->v).EvCrc32 >> 8) & 0xFF;
+      buffer[2] = ((act_ids_xmit[ch]->v).EvCrc32 >> 16) & 0xFF;
+      buffer[3] = ((act_ids_xmit[ch]->v).EvCrc32 >> 24) & 0xFF;
+      mask = 0b0000111;
+      break;
   }
   ///<ev_id_xmit
 
 
   if (source_ptr != NULL) {
-    copy_buffer_data(source_ptr, dest_ptr, copy_size, true);
+    copy_buffer_data(source_ptr, dest_ptr, copy_size, true); //changed to true
   }
 
   invalidate_bytes_page(buffer, mask);
+
+  //CRC 32 implementation
+  if (page > 0 && page < 251) {
+    if (xmit_stage_buffer_idx[ch] < (MAX_STAGE_BYTES - 8)) {
+      xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = page;
+      for (int i = 0; i < 7; i++) {
+        xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = buffer[i];
+      }
+    }
+  }
 
   LW(ch, l_u8, EvIDPage, page);
   LW(ch, l_u8, EvIDByteA, buffer[0]);
@@ -942,6 +1028,8 @@ void id_xmit(uint8_t ch, uint8_t page){
 
 void data_xmit(uint8_t ch, uint8_t page) {
   static uint8_t buffer[7];
+  //CRC 32 implementation
+  memset(buffer, 0xFF, sizeof(buffer)); // rid garbage pre fill with FF
   uint8_t mask = 0;
 
   uint8_t copy_size = 7;
@@ -1103,14 +1191,33 @@ void data_xmit(uint8_t ch, uint8_t page) {
       buffer[3] = ((act_data_xmit[ch]->v).EvCurVarSupply >> 8) & 0xFF;
       mask = 0b0000111;
       break;
+      // CRC 32 implementation
+    case 251:
+      (act_data_xmit[ch]->v).EvCrc32 = crc32(xmit_stage_buffer[ch], xmit_stage_buffer_idx[ch]);
+      buffer[0] = ((act_data_xmit[ch]->v).EvCrc32) & 0xFF;
+      buffer[1] = ((act_data_xmit[ch]->v).EvCrc32 >> 8) & 0xFF;
+      buffer[2] = ((act_data_xmit[ch]->v).EvCrc32 >> 16) & 0xFF;
+      buffer[3] = ((act_data_xmit[ch]->v).EvCrc32 >> 24) & 0xFF;
+      mask = 0b0000111;
+      break;
   }
   ///<ev_data_xmit
 
   if (source_ptr != NULL) {
-    copy_buffer_data(source_ptr, dest_ptr, copy_size, false);
+    copy_buffer_data(source_ptr, dest_ptr, copy_size, true); //changed to true
   }
 
   invalidate_bytes_page(buffer, mask);
+
+  // CRC 32 implementation
+  if (page > 0 && page < 251) {
+    if (xmit_stage_buffer_idx[ch] < (MAX_STAGE_BYTES - 8)) {
+      xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = page;
+      for (int i = 0; i < 7; i++) {
+        xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = buffer[i];
+      }
+    }
+  }
 
   LW(ch, l_u8, EvIDPage, page);
   LW(ch, l_u8, EvIDByteA, buffer[0]);
@@ -1143,7 +1250,17 @@ void data_parse(uint8_t ch)  {
   buffer[5] = LR(ch, l_u8, SeIDByteF);
   buffer[6] = LR(ch, l_u8, SeIDByteG);
 
-  pgs_read[ch]++;
+  // CRC 32 implementation This is counting up the seID pages here
+  uint8_t current_page = READ_RM_PAGE_NUMBER(ch);
+  if (current_page > 0 && current_page < 251) {
+      if ((rcv_stage_buffer_idx[ch] + 8) <= MAX_STAGE_BYTES) {
+          rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = current_page;
+          for (int i = 0; i < 7; i++) {
+              rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = buffer[i];
+          }
+      }
+  }
+
 
   ///>ev_data_parse
   switch(LR(ch, l_u8, SeIDPage)) {
@@ -1152,7 +1269,9 @@ void data_parse(uint8_t ch)  {
       se_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-        clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+      // CRC 32 implementation 
+      rcv_stage_buffer_idx[ch] = 0;
+      clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 97:
       (act_data_rcv[ch]->v).SeAmbientTemp = ((uint16_t)buffer[1] << 8) | ((uint16_t)buffer[0]);
@@ -1184,11 +1303,26 @@ void data_parse(uint8_t ch)  {
       (act_data_rcv[ch]->v).SeHVESSEnergyCalc = ((uint32_t)buffer[5] << 16) | ((uint32_t)buffer[4] << 8) | ((uint32_t)buffer[3]);
       printf("SeHVESSEnergyCalc %.3lf kWh\n", ((double)(act_data_rcv[ch]->v).SeHVESSEnergyCalc * 0.001000));
       break;
+    // CRC 32 implementation
+    case 251:
+    {
+      uint32_t received_crc = ((uint32_t)buffer[3] << 24) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[1] << 8)  | ((uint32_t)buffer[0]);
+      (act_data_rcv[ch]->v).SeCrc32 = received_crc;
+      
+      printf("SeData CRC: 0x%08X\n", received_crc);      
+      // Reset buffer index for the next stage
+      rcv_stage_buffer_idx[ch] = 0;
+      break;
+    }
   }
+
+
   ///<ev_data_parse
 
   if (dest_ptr != NULL) {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
+    // CRC 32 implementation
+    pgs_read[ch]++;
   }
 
   if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, EvIDPage) == last_pg[ch]))  {
@@ -1223,7 +1357,16 @@ bool id_parse(uint8_t ch) {
   //printf("-->%c%c\n", buffer[0], buffer[1]);
   //printf("page:%d\n", l_u8_rd_LI0_EvIDPage());
 
-  pgs_read[ch]++;
+  //CRC 32 implementation
+  uint8_t current_page = READ_RM_PAGE_NUMBER(ch);
+  if (current_page > 0 && current_page < 251) {
+      if ((rcv_stage_buffer_idx[ch] + 8) <= MAX_STAGE_BYTES) {
+          rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = current_page;
+          for (int i = 0; i < 7; i++) {
+              rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = buffer[i];
+          }
+      }
+  }
 
   ///>se_id_parse
   switch(LR(ch, l_u8, EvIDPage)) {
@@ -1232,7 +1375,9 @@ bool id_parse(uint8_t ch) {
       ev_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-        clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+      // CRC 32 implementation
+      rcv_stage_buffer_idx[ch] = 0;
+      clear_ids_rcv_buff(act_ids_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 1:
       dest_ptr = (uint8_t *) (act_ids_rcv[ch]->s).EvVIN;
@@ -1332,7 +1477,17 @@ bool id_parse(uint8_t ch) {
     case 38:
       dest_ptr = (uint8_t *) (act_ids_rcv[ch]->s).EvManufacturer + 35;
       break;
+    // CRC 32 implementation
+    case 251:
+    {
+        uint32_t received_crc = ((uint32_t)buffer[3] << 24) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[1] << 8)  | ((uint32_t)buffer[0]);
+
+        printf("ID_STAGE Received CRC: 0x%08X\n", received_crc);
+        rcv_stage_buffer_idx[ch] = 0;
+        break;
+    }
   }
+
   ///<se_id_parse
 
   //printf("pointer:%p\n",dest_ptr);
@@ -1341,6 +1496,8 @@ bool id_parse(uint8_t ch) {
 
   if (dest_ptr != NULL) {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
+    // CRC 32 implementation
+    pgs_read[ch]++;
   }
 
   if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, EvIDPage) == last_pg[ch]))  {
@@ -1356,6 +1513,8 @@ bool id_parse(uint8_t ch) {
 
 void id_xmit(uint8_t ch, uint8_t page){
   static uint8_t buffer[7];
+  //CRC 32 implementation
+  memset(buffer, 0xFF, sizeof(buffer)); // rid garbage pre fill with FF
   uint8_t mask = 0;
 
   uint8_t copy_size = 7;
@@ -1371,6 +1530,7 @@ void id_xmit(uint8_t ch, uint8_t page){
       buffer[3] = 38; //last page
       buffer[4] = 0x00; //CRC neither sent nor read
       mask = 0b0000011;
+      xmit_stage_buffer_idx[ch] = 0;
       break;
     case 1:
       source_ptr = (uint8_t *) (act_ids_xmit[ch]->s).SeEVSEID;
@@ -1488,15 +1648,35 @@ void id_xmit(uint8_t ch, uint8_t page){
     case 38:
       source_ptr = (uint8_t *) (act_ids_xmit[ch]->s).SePublicName + 35;
       break;
+    // CRC 32 implementation
+    case 251:
+      // Calculate the CRC over the ID string struct, excluding the CRC field itself
+      (act_ids_xmit[ch]->v).SeCrc32 = crc32(xmit_stage_buffer[ch], xmit_stage_buffer_idx[ch]);
+      buffer[0] = ((act_ids_xmit[ch]->v).SeCrc32) & 0xFF;
+      buffer[1] = ((act_ids_xmit[ch]->v).SeCrc32 >> 8) & 0xFF;
+      buffer[2] = ((act_ids_xmit[ch]->v).SeCrc32 >> 16) & 0xFF;
+      buffer[3] = ((act_ids_xmit[ch]->v).SeCrc32 >> 24) & 0xFF;
+      mask = 0b0000111;
+      break;
   }
   ///<se_id_xmit
 
 
   if (source_ptr != NULL) {
-    copy_buffer_data(source_ptr, dest_ptr, copy_size, true);
+    copy_buffer_data(source_ptr, dest_ptr, copy_size, true); // changed to true
   }
 
   invalidate_bytes_page(buffer, mask);
+
+  //CRC 32 implementation
+  if (page > 0 && page < 251) {
+    if (xmit_stage_buffer_idx[ch] < (MAX_STAGE_BYTES - 8)) {
+      xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = page;
+      for (int i = 0; i < 7; i++) {
+        xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = buffer[i];
+      }
+    }
+  }
 
   LW(ch, l_u8, SeIDPage, page);
   LW(ch, l_u8, SeIDByteA, buffer[0]);
@@ -1510,6 +1690,8 @@ void id_xmit(uint8_t ch, uint8_t page){
 
 void data_xmit(uint8_t ch, uint8_t page) {
   static uint8_t buffer[7];
+  //CRC 32 implementation
+  memset(buffer, 0xFF, sizeof(buffer)); // rid garbage pre fill with FF
   uint8_t mask = 0;
   uint32_t temp;
 
@@ -1553,14 +1735,33 @@ void data_xmit(uint8_t ch, uint8_t page) {
       buffer[5] = ((act_data_xmit[ch]->v).SeHVESSEnergyCalc >> 16) & 0xFF;
       mask = 0b0000001;
       break;
+    // CRC 32 implementation
+    case 251:
+      (act_data_xmit[ch]->v).SeCrc32 = crc32(xmit_stage_buffer[ch], xmit_stage_buffer_idx[ch]);
+      buffer[0] = ((act_data_xmit[ch]->v).SeCrc32) & 0xFF;
+      buffer[1] = ((act_data_xmit[ch]->v).SeCrc32 >> 8) & 0xFF;
+      buffer[2] = ((act_data_xmit[ch]->v).SeCrc32 >> 16) & 0xFF;
+      buffer[3] = ((act_data_xmit[ch]->v).SeCrc32 >> 24) & 0xFF;
+      mask = 0b0000111;
+      break;
   }
   ///<se_data_xmit
 
   if (source_ptr != NULL) {
-    copy_buffer_data(source_ptr, dest_ptr, copy_size, false);
+    copy_buffer_data(source_ptr, dest_ptr, copy_size, true); //changed to true
   }
 
   invalidate_bytes_page(buffer, mask);
+
+  //CRC 32 implementation
+  if (page > 0 && page < 251) {
+    if (xmit_stage_buffer_idx[ch] < (MAX_STAGE_BYTES - 8)) {
+      xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = page;
+      for (int i = 0; i < 7; i++) {
+        xmit_stage_buffer[ch][xmit_stage_buffer_idx[ch]++] = buffer[i];
+      }
+    }
+  }
 
   LW(ch, l_u8, SeIDPage, page);
   LW(ch, l_u8, SeIDByteA, buffer[0]);
@@ -1593,7 +1794,17 @@ void data_parse(uint8_t ch)  {
   buffer[5] = LR(ch, l_u8, EvIDByteF);
   buffer[6] = LR(ch, l_u8, EvIDByteG);
 
-  pgs_read[ch]++;
+  // CRC 32 implementation This is counting up the EVID pages for crc  here
+  uint8_t current_page = READ_RM_PAGE_NUMBER(ch);
+  if (current_page > 0 && current_page < 251) {
+      if ((rcv_stage_buffer_idx[ch] + 8) <= MAX_STAGE_BYTES) {
+          rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = current_page;
+          for (int i = 0; i < 7; i++) {
+              rcv_stage_buffer[ch][rcv_stage_buffer_idx[ch]++] = buffer[i];
+          }
+      }
+  }
+
 
   ///>se_data_parse
   switch(LR(ch, l_u8, EvIDPage)) {
@@ -1602,7 +1813,9 @@ void data_parse(uint8_t ch)  {
       ev_id_status[ch] = buffer[0];
       last_pg[ch] = buffer[3];
       pgs_read[ch] = 1;
-        clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
+      // CRC 32 implementation
+      rcv_stage_buffer_idx[ch] = 0; 
+      clear_data_rcv_buff(act_data_rcv[ch]);  //clear rcv buffer on control page to remove data from corrupted cycle
       break;
     case 97:
       (act_data_rcv[ch]->v).EvOdometer = ((uint32_t)buffer[3] << 24) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[1] << 8) | ((uint32_t)buffer[0]);
@@ -1739,11 +1952,25 @@ void data_parse(uint8_t ch)  {
       (act_data_rcv[ch]->v).EvCurVarSupply = ((uint16_t)buffer[3] << 8) | ((uint16_t)buffer[2]);
       printf("EvCurVarSupply %.3lf kVA\n", ((double)(act_data_rcv[ch]->v).EvCurVarSupply * 0.05));
       break;
+    // CRC 32 implementation
+    case 251:
+    {
+      uint32_t received_crc = ((uint32_t)buffer[3] << 24) | ((uint32_t)buffer[2] << 16) | ((uint32_t)buffer[1] << 8)  | ((uint32_t)buffer[0]);
+      (act_data_rcv[ch]->v).EvCrc32 = received_crc;
+
+      printf("EvData CRC: 0x%08X\n", received_crc);
+      
+      // Reset buffer index for the next stage
+      rcv_stage_buffer_idx[ch] = 0;
+      break;
+    }
   }
   ///<se_data_parse
 
   if (dest_ptr != NULL) {
     copy_buffer_data(source_ptr, dest_ptr, copy_size, is_string);
+    // CRC 32 implementation
+    pgs_read[ch]++;
   }
 
   if ((pgs_read[ch] == pgs_to_read[ch]) && (LR(ch, l_u8, SeIDPage) == last_pg[ch]))  {

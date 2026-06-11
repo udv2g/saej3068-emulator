@@ -20,8 +20,8 @@ schedule_action_t schedule_ver[NUMBER_OF_FRAMES] = {
   CopyEvToSe,     //EvInfoList
   DoNothing,      //StErrorList
   DoNothing,      //EvErrorList
-  DoNothing,      //SeID
   DoNothing,      //EvID
+  DoNothing,      //SeID
   DoNothing,      //17
   DoNothing,      //18
   DoNothing,      //19
@@ -49,8 +49,8 @@ schedule_action_t schedule_init[NUMBER_OF_FRAMES] = {
   CopyEvToSe,     //EvInfoList
   DoNothing,      //StErrorList
   DoNothing,      //EvErrorList
-  DoNothing,      //SeID
   DoNothing,      //EvID
+  DoNothing,      //SeID
   DoNothing,      //17
   DoNothing,      //18
   DoNothing,      //19
@@ -78,8 +78,8 @@ schedule_action_t schedule_op_base[NUMBER_OF_FRAMES] = {
   CopyEvToSe,     //EvInfoList
   DoNothing,      //StErrorList
   DoNothing,      //EvErrorList
-  DoNothing,      //SeID
   DoNothing,      //EvID
+  DoNothing,      //SeID
   DoNothing,      //17
   DoNothing,      //18
   DoNothing,      //19
@@ -107,8 +107,8 @@ schedule_action_t schedule_op_slash1[NUMBER_OF_FRAMES] = {
   CopyEvToSe,     //EvInfoList
   DoNothing,      //StErrorList
   DoNothing,      //EvErrorList
-  CopySeToEv,     //SeID
   CopyEvToSe,     //EvID
+  CopySeToEv,     //SeID
   DoNothing,      //17
   DoNothing,      //18
   DoNothing,      //19
@@ -136,8 +136,8 @@ schedule_action_t schedule_op_slash2[NUMBER_OF_FRAMES] = {
   CopyEvToSe,     //EvInfoList
   DoNothing,      //StErrorList
   DoNothing,      //EvErrorList
-  CopySeToEv,     //SeID
   CopyEvToSe,     //EvID
+  CopySeToEv,     //SeID
   DoNothing,      //17
   DoNothing,      //18
   DoNothing,      //19
@@ -163,8 +163,8 @@ void verify_type_sizes()  {
   printf("%s, %ld\n", FRAME_SIZE(EvMaxMinCurrents_t));
   printf("%s, %ld\n", FRAME_SIZE(SeInfoList_t));
   printf("%s, %ld\n", FRAME_SIZE(EvInfoList_t));
-  printf("%s, %ld\n", FRAME_SIZE(SeID_t));
   printf("%s, %ld\n", FRAME_SIZE(EvID_t));
+  printf("%s, %ld\n", FRAME_SIZE(SeID_t));
   printf("%s, %ld\n", FRAME_SIZE(EvModeCtrl_t));
   printf("%s, %ld\n", FRAME_SIZE(SeModeCtrl_t));
   printf("%s, %ld\n", FRAME_SIZE(EvJ3072_t));
@@ -201,6 +201,52 @@ void print_LIN_record(FILE * stream, double time_end, uint8_t frame_number, gene
 	fprintf(stream, "   sim = 0    EOF = %11.6f",time_end += 0.000572);
 	fprintf(stream, "   RBR = 19200  HBR = 19200.000000  HSO = 22785     RSO = 22750     CSM = enhanced\n");
 
+}
+
+void print_generic_frame_complete(FILE * stream, uint8_t frame_number, generic_frame_t * frame)  {
+  uint32_t checksum;
+	uint8_t p0, p1;
+  uint8_t protected_identifier;
+  uint8_t temp;
+
+  p0 = (frame_number & 0b00000001) ^ ((frame_number >> 1) & 0b00000001) ^ ((frame_number >> 2) & 0b00000001) ^ ((frame_number >> 4) & 0b00000001);
+	p1 = !(((frame_number >> 1) & 0b00000001) ^ ((frame_number >> 3) & 0b00000001) ^ ((frame_number >> 4) & 0b00000001) ^ ((frame_number >> 5) & 0b00000001));
+  protected_identifier = ((p1 << 7) | (p0 << 6) | frame_number);
+  checksum = protected_identifier;
+
+#if (GENERATE_UART_LOG == 2) || (GENERATE_UART_LOG == 3)
+  #define SEP " "
+#else
+  #define SEP ""
+#endif
+
+#if (GENERATE_UART_LOG != 0)
+  fprintf(stream, "00%s55%s%02X%s", SEP, SEP, protected_identifier, SEP);
+#else
+  temp = 0x00;
+  fwrite(&temp, 1, 1, stream);
+  temp = 0x55;
+  fwrite(&temp, 1, 1, stream);
+  fwrite(&protected_identifier, 1, 1, stream);
+#endif
+  for (uint8_t i = 0; i<8; i++)	{
+#if (GENERATE_UART_LOG != 0)
+		fprintf(stream, "%02X%s", frame->data[i], SEP);
+#else
+  fwrite(&(frame->data[i]), 1, 1, stream);
+#endif
+		checksum += frame->data[i];
+	}
+  checksum = ~(checksum%255) & 0xFF;
+#if (GENERATE_UART_LOG != 0)
+  fprintf(stream, "%02X%s", checksum, SEP);
+#else
+  fwrite(&checksum, 1, 1, stream);
+#endif
+
+#if (GENERATE_UART_LOG == 3)
+  fprintf(stream, "\n");
+#endif
 }
 
 void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
@@ -365,17 +411,6 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
     //  PRINT_FRAME_VARIABLE(EvErrorList, EvErrorEntry6, 0X);
     //  break;
     case 15:
-      SeID_p = frame;
-      PRINT_FRAME_VARIABLE(SeID, SeIDPage, d);
-      PRINT_FRAME_VARIABLE(SeID, SeIDByteA, 0X);
-      PRINT_FRAME_VARIABLE(SeID, SeIDByteB, 0X);
-      PRINT_FRAME_VARIABLE(SeID, SeIDByteC, 0X);
-      PRINT_FRAME_VARIABLE(SeID, SeIDByteD, 0X);
-      PRINT_FRAME_VARIABLE(SeID, SeIDByteE, 0X);
-      PRINT_FRAME_VARIABLE(SeID, SeIDByteF, 0X);
-      PRINT_FRAME_VARIABLE(SeID, SeIDByteG, 0X);
-      break;
-    case 16:
       EvID_p = frame;
       PRINT_FRAME_VARIABLE(EvID, EvIDPage, d);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteA, 0X);
@@ -385,6 +420,18 @@ void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame) {
       PRINT_FRAME_VARIABLE(EvID, EvIDByteE, 0X);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteF, 0X);
       PRINT_FRAME_VARIABLE(EvID, EvIDByteG, 0X);
+      break;
+
+    case 16:
+      SeID_p = frame;
+      PRINT_FRAME_VARIABLE(SeID, SeIDPage, d);
+      PRINT_FRAME_VARIABLE(SeID, SeIDByteA, 0X);
+      PRINT_FRAME_VARIABLE(SeID, SeIDByteB, 0X);
+      PRINT_FRAME_VARIABLE(SeID, SeIDByteC, 0X);
+      PRINT_FRAME_VARIABLE(SeID, SeIDByteD, 0X);
+      PRINT_FRAME_VARIABLE(SeID, SeIDByteE, 0X);
+      PRINT_FRAME_VARIABLE(SeID, SeIDByteF, 0X);
+      PRINT_FRAME_VARIABLE(SeID, SeIDByteG, 0X);
       break;
 
     //case 17:

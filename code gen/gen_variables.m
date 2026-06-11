@@ -1,15 +1,20 @@
-function [defines, inits] = gen_variables(defined_pages, array, capl)
+function [defines, inits] = gen_variables(defined_pages, array, language)
 
-	if capl
+	if strcmp(language,'CAPL')
 		u8t = 'byte';
 		u16t = 'word';
 		u32t = 'dword';
 		prepend = '';
-	else
+	elseif strcmp(language,'C')
 		u8t = 'uint8_t';
 		u16t = 'uint16_t';
 		u32t = 'uint32_t';
 		prepend = 'PREPEND ';
+	elseif strcmp(language, 'PYTHON')
+		u8t = [];
+		u16t = [];
+		u32t = [];
+		prepend = [];
 	end
 
 	first = true;
@@ -104,17 +109,19 @@ function [defines, inits] = gen_variables(defined_pages, array, capl)
 						disp("string/array")
 						if ~strcmp(array{page}(index).label, last_label)
 							%bytes_ceil = ceil(bytes_bits/7)*7;
-							if capl
+							if strcmp(language,'CAPL')
 								temp_type = 'char';
-							else
-							temp_type = u8t;
+							elseif strcmp(language,'C')
+								temp_type = u8t;
+							elseif strcmp(language, 'PYTHON')
+								temp_type = [];
 							end
 							if array{page}(1).stage == -2
 								defines{2, 1} = [defines{2, 1}, sprintf("  %s %s[%d];\n", temp_type, array{page}(index).label,bytes_bits +1)];
 							else
 								defines{2, array{page}(1).stage +1} = [defines{2, array{page}(1).stage +1}, sprintf("  %s %s[%d];\n", temp_type, array{page}(index).label,bytes_bits +1)];
 							end
-							if ~capl
+							if strcmp(language,'C')
 								ident_array = [];
 								if array{page}(index).unit(1) ~= '#'
 									source_array = array{page}(index).unit;
@@ -144,7 +151,7 @@ function [defines, inits] = gen_variables(defined_pages, array, capl)
 							if array{page}(1).stage == -2
 								inits{2, 1} = [inits{2, 1}, sprintf("  %s[0] = \'\\0\';\n", array{page}(index).label) ];
 								inits{2, 2} = [inits{2, 2}, sprintf("  %s[0] = \'\\0\';\n", array{page}(index).label) ];
-							else
+							elseif strcmp(language,'CAPL')
 								inits{2, array{page}(1).stage +1} = [inits{2, array{page}(1).stage +1}, sprintf("  %s[0] = \'\\0\';\n", array{page}(index).label) ];
 							end
 						end

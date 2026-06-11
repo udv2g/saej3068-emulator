@@ -14,6 +14,6 @@ void on_id_frame_receipt(uint8_t ch);
 void on_id_frame_xmit(uint8_t ch);
 
 void copy_buffer_data(uint8_t * source, uint8_t * destination, uint8_t size, bool string);
-void invalidate_bytes_page(uint8_t * buffer, uint8_t mask);
+void invalidate_bytes_page(uint8_t * buffer, uint8_t mask); 
 
 #endif

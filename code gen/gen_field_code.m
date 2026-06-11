@@ -1,4 +1,4 @@
-function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', rpage=false, capl=false, interactive=false)
+function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', rpage=false, language='CAPL', interactive=false)
 	gen_values = strcmp(print_command, 'yes');
 
 	no_stage_2 = false;
@@ -28,8 +28,8 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 	[se_numarr, se_txtarr, se_rawarr, se_limits] = xlsread (ods_in, sesheet);
 	[se_defined_pages, se_array] = gen_page_array(se_rawarr, 'Se');
 
-	[ev_defines, ev_inits] = gen_variables(ev_defined_pages, ev_array, capl)
-	[se_defines, se_inits] = gen_variables(se_defined_pages, se_array, capl)
+	[ev_defines, ev_inits] = gen_variables(ev_defined_pages, ev_array, language)
+	[se_defines, se_inits] = gen_variables(se_defined_pages, se_array, language)
 
 	state = 'copy';
 
@@ -52,7 +52,7 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 				end
 			case 'Declarations'
 				fprintf(out_hdl, "\n");
-				if ~capl
+				if strcmp(language,'C')
 					if ~isempty(ev_defines{4,1})
 						fprintf(out_hdl, "%s", ev_defines{4,1}); %EV ID enumerations
 						fprintf(out_hdl, "\n");
@@ -316,7 +316,7 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 						fprintf(out_hdl, ["  ev_",stages{2},"_t ", FPTR, "act_",stages{2},"_rcv[2], ", FPTR, "inact_",stages{2},"_rcv[2];\n"]);
 					end
 					fprintf(out_hdl, "#endif\n\n");
-				else
+				elseif strcmp(language,'CAPL')
 					fprintf(out_hdl, "%s", ev_defines{1,1}); %EV ID
 					fprintf(out_hdl, "%s", se_defines{1,1}); %SE ID
 					if ~no_stage_2
@@ -332,7 +332,8 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 					if ~no_stage_2
 						fprintf(out_hdl, "%s", ev_defines{2,2});%SE rcv DATA strings
 					end
-				end
+				elseif strcmp(language, 'PYTHON') 
+					end
 
 				state = 'delete';
 			case 'pgs_to_send'
@@ -479,10 +480,12 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 
 				state = 'delete';
 			case {'ev_id_parse','ev_cert_parse'}
-				if ~capl
-					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, FPTR, false, slash);	%se because ev receives se data
-				else
-					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, FPTR, true, slash);
+				if strcmp(language,'C')
+					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, FPTR, language, slash);	%se because ev receives se data
+				elseif strcmp(language,'CAPL')
+					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, FPTR, language, slash);
+        		elseif strcmp(language,'PYTHON')
+          			gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, FPTR, language, slash);   %ev_cert_parse
 				end
 
 				state = 'delete';
@@ -491,10 +494,12 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 
 				state = 'delete';
 			case {'ev_data_parse','ev_sunspec_parse'}
-				if ~capl
-					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, FPTR, false, slash);	%se because ev receives se data
-				else
-					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, FPTR, true, slash);
+				if strcmp(language,'C')
+					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, FPTR, language, slash);	%se because ev receives se data
+				elseif strcmp(language,'CAPL')
+					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, FPTR, language, slash);
+        		elseif strcmp(language,'PYTHON')
+          			gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, FPTR, language, slash); %EV DATA PARSE
 				end
 
 				state = 'delete';
@@ -504,10 +509,12 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 				state = 'delete';
 
 			case {'se_id_parse','se_cert_parse'}
-				if ~capl
-					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, FPTR, false, slash);	%ev because se receives ev data
-				else
-					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, FPTR, true, slash);
+				if strcmp(language,'C')
+					gen_parse_switch(out_hdl, 'ev', 0, ev_defined_pages, ev_array, print_command, FPTR, language, slash);	%ev because se receives ev data
+				elseif strcmp(language,'CAPL')
+					gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, FPTR, language, slash);
+        		elseif strcmp(language,'PYTHON')
+          			gen_parse_switch(out_hdl, 'se', 0, se_defined_pages, se_array, print_command, FPTR, language, slash); %se_cert_parse
 				end
 
 				state = 'delete';
@@ -516,10 +523,12 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 
 				state = 'delete';
 			case {'se_data_parse','se_sunspec_parse'}
-				if ~capl
-					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, FPTR, false, slash);
-				else
-					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, FPTR, true, slash);
+				if strcmp(language,'C')
+					gen_parse_switch(out_hdl, 'ev', 1, ev_defined_pages, ev_array, print_command, FPTR, language, slash);
+				elseif strcmp(language,'CAPL')
+					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, FPTR, language, slash);
+				elseif strcmp(language,'PYTHON')
+					gen_parse_switch(out_hdl, 'se', 1, se_defined_pages, se_array, print_command, FPTR, language, slash); % SE DATA PARSE
 				end
 
 				state = 'delete';
@@ -536,7 +545,7 @@ function gen_field_code(slash, ods_in, c_in, c_out, print_command='commented', r
 	fclose(out_hdl);
 
 	if interactive
-		keyboard	%dbcont to continue
+		keyboard	
 	end
 
 	fclose(in_hdl);

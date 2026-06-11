@@ -18,6 +18,7 @@ char * schedule_strings[] = { "LI0_LIN_NULL_SCHEDULE", "LI0_GOTO_SLEEP_SCHEDULE"
 
 FILE * log_file;
 FILE * asc_file;
+FILE * uart_file;
 
 void clean_up()
 {
@@ -30,6 +31,11 @@ void clean_up()
   fclose(asc_file);
 #endif
   exit(0);
+
+
+#ifdef GENERATE_UART_LOG
+  fclose(uart_file);
+#endif
 }
 
 int main(int argc, char **argv)  {
@@ -57,10 +63,12 @@ int main(int argc, char **argv)  {
 
   char log_name[MAX_LOG_NAME];
   char asc_name[MAX_LOG_NAME];
+  char uart_name[MAX_LOG_NAME];
   char time_string[MAX_TIME_STRING];
   time_t time_int = time(NULL);
   strftime(log_name, MAX_LOG_NAME, "LIN-CP_emu_Log_%Y-%m-%d_%H-%M-%S.txt", localtime(&time_int));
   strftime(asc_name, MAX_LOG_NAME, "LIN-CP_emu_Log_%Y-%m-%d_%H-%M-%S.asc", localtime(&time_int));   //~~lazy~~
+  strftime(uart_name, MAX_LOG_NAME, "LIN-CP_emu_Log_%Y-%m-%d_%H-%M-%S.log", localtime(&time_int));
   strftime(time_string, MAX_TIME_STRING, "%a %b %-e %I:%M:%S.000 %P %Y", localtime(&time_int));	//%e includes a leading space vector does not use. '-' removes in GCC.  We don't have easy access to sub-second so just use .000
 
 #ifdef GENERATE_TEXT_LOG
@@ -83,6 +91,13 @@ int main(int argc, char **argv)  {
 
 	ref_time += 0.0028;
 	fprintf(asc_file, "%11.6f Li SleepModeEvent 0 starting up in wake mode\n", ref_time);
+#endif
+
+#ifdef GENERATE_UART_LOG
+  if ((uart_file = fopen(uart_name,"w")) == NULL){
+    printf("Error opening UART Log file");
+    exit(1);
+  }
 #endif
 
   signal(SIGINT, clean_up);   //free log file on ^c
@@ -209,6 +224,10 @@ int main(int argc, char **argv)  {
 
 #ifdef GENERATE_ASC_LOG
         print_LIN_record(asc_file, ref_time += 0.011, i, &(source[i]));
+#endif
+
+#ifdef GENERATE_UART_LOG
+        print_generic_frame_complete(uart_file, i, &(source[i]));
 #endif
       }
     }

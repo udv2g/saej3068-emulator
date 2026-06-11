@@ -5,15 +5,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* Endianness guard: GCC and Clang both predefine these macros. */
-#if !defined(__BYTE_ORDER__) || !defined(__ORDER_LITTLE_ENDIAN__)
-#error "Compiler does not define __BYTE_ORDER__ / __ORDER_LITTLE_ENDIAN__"
-#endif
-
 #define NUMBER_OF_FRAMES 26 //64 for complete LIN
 
 #define GENERATE_TEXT_LOG
-#define GENERATE_ASC_LOG
+//#define GENERATE_ASC_LOG
+
+//  0   binary
+//  1   no space
+//  2   space
+//  3   space with newline
+#define GENERATE_UART_LOG 0
 
 /****<DO NOT MODIFY******/
 #ifndef EV_CONFIG
@@ -37,8 +38,8 @@
   FRAME_ASSIGN(EvMaxMinCurrents, 9);        \
   FRAME_ASSIGN(SeInfoList, 11);             \
   FRAME_ASSIGN(EvInfoList, 12);             \
-  FRAME_ASSIGN(SeID, 15);                   \
-  FRAME_ASSIGN(EvID, 16);                   \
+  FRAME_ASSIGN(EvID, 15);                   \
+  FRAME_ASSIGN(SeID, 16);                   \
   FRAME_ASSIGN(EvModeCtrl, 21);             \
   FRAME_ASSIGN(SeModeCtrl, 22);             \
   FRAME_ASSIGN(EvJ3072, 23);                \
@@ -59,8 +60,8 @@
   FRAME_POINTER(EvMaxMinCurrents);          \
   FRAME_POINTER(SeInfoList);                \
   FRAME_POINTER(EvInfoList);                \
-  FRAME_POINTER(SeID);                      \
   FRAME_POINTER(EvID);                      \
+  FRAME_POINTER(SeID);                      \
   FRAME_POINTER(EvModeCtrl);                \
   FRAME_POINTER(SeModeCtrl);                \
   FRAME_POINTER(EvJ3072);                   \
@@ -73,22 +74,14 @@ typedef struct {
   uint8_t data[8];
 } generic_frame_t;
 
-/* Frame: 0, SeVersionList */
+//Frame: 0, SeVersionList
 typedef struct {
   uint8_t SeSelectedVersion;
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-  unsigned int                 : 1;  /* bit 8  (LSB of byte 1) */
-  unsigned int SeStatusVer     : 2;  /* bits 9-10  */
-  unsigned int SeStatusInit    : 2;  /* bits 11-12 */
-  unsigned int SeStatusOp      : 2;  /* bits 13-14 */
-  unsigned int                 : 1;  /* bit 15 (MSB) */
-#else /* __ORDER_BIG_ENDIAN__ */
-  unsigned int                 : 1;
-  unsigned int SeStatusOp      : 2;
-  unsigned int SeStatusInit    : 2;
-  unsigned int SeStatusVer     : 2;
-  unsigned int                 : 1;
-#endif
+  unsigned int : 1;
+  unsigned int SeStatusOp : 2;
+  unsigned int SeStatusInit : 2;
+  unsigned int SeStatusVer : 2;
+  unsigned int : 1;
   uint8_t SeVersionPageNumber;
   uint8_t SeSupportedVersion1;
   uint8_t SeSupportedVersion2;
@@ -97,22 +90,14 @@ typedef struct {
   uint8_t SeSupportedVersion5;
 } SeVersionList_t;
 
-/* Frame: 1, EvVersionList */
+//Frame: 1, EvVersionList
 typedef struct {
   uint8_t EvSelectedVersion;
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-  unsigned int EvResponseError : 1;  /* bit 8  (LSB of byte 1) */
-  unsigned int EvStatusVer     : 2;  /* bits 9-10  */
-  unsigned int EvStatusInit    : 2;  /* bits 11-12 */
-  unsigned int EvStatusOp      : 2;  /* bits 13-14 */
-  unsigned int EvAwake         : 1;  /* bit 15 (MSB) */
-#else /* __ORDER_BIG_ENDIAN__ */
-  unsigned int EvAwake         : 1;
-  unsigned int EvStatusOp      : 2;
-  unsigned int EvStatusInit    : 2;
-  unsigned int EvStatusVer     : 2;
-  unsigned int EvResponseError : 1;
-#endif
+  unsigned int EvAwake: 1;
+  unsigned int EvStatusOp : 2;
+  unsigned int EvStatusInit : 2;
+  unsigned int EvStatusVer : 2;
+  unsigned int EvResponseError: 1;
   uint8_t EvVersionPageNumber;
   uint8_t EvSupportedVersion1;
   uint8_t EvSupportedVersion2;
@@ -121,49 +106,33 @@ typedef struct {
   uint8_t EvSupportedVersion5;
 } EvVersionList_t;
 
-/* Frame: 2, SeStatus */
+//Frame: 2, SeStatus
 typedef struct {
   uint8_t SeSelectedVersion;
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-  unsigned int                 : 1;  /* bit 8  (LSB) */
-  unsigned int SeStatusVer     : 2;  /* bits 9-10  */
-  unsigned int SeStatusInit    : 2;  /* bits 11-12 */
-  unsigned int SeStatusOp      : 2;  /* bits 13-14 */
-  unsigned int                 : 1;  /* bit 15 (MSB) */
-#else /* __ORDER_BIG_ENDIAN__ */
-  unsigned int                 : 1;
-  unsigned int SeStatusOp      : 2;
-  unsigned int SeStatusInit    : 2;
-  unsigned int SeStatusVer     : 2;
-  unsigned int                 : 1;
-#endif
-  uint8_t  SeAvailableCurrentL1;
-  uint8_t  SeAvailableCurrentL2;
-  uint8_t  SeAvailableCurrentL3;
-  uint8_t  SeAvailableCurrentN;
+  unsigned int : 1;
+  unsigned int SeStatusOp : 2;
+  unsigned int SeStatusInit : 2;
+  unsigned int SeStatusVer : 2;
+  unsigned int : 1;
+  uint8_t SeAvailableCurrentL1;
+  uint8_t SeAvailableCurrentL2;
+  uint8_t SeAvailableCurrentL3;
+  uint8_t SeAvailableCurrentN;
   uint16_t reserved;
 } SeStatus_t;
 
-/* Frame: 3, EvStatus */
+//Frame: 3, EvStatus
 typedef struct {
   uint8_t EvSelectedVersion;
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-  unsigned int EvResponseError : 1;  /* bit 8  (LSB) */
-  unsigned int EvStatusVer     : 2;  /* bits 9-10  */
-  unsigned int EvStatusInit    : 2;  /* bits 11-12 */
-  unsigned int EvStatusOp      : 2;  /* bits 13-14 */
-  unsigned int EvAwake         : 1;  /* bit 15 (MSB) */
-#else /* __ORDER_BIG_ENDIAN__ */
-  unsigned int EvAwake         : 1;
-  unsigned int EvStatusOp      : 2;
-  unsigned int EvStatusInit    : 2;
-  unsigned int EvStatusVer     : 2;
-  unsigned int EvResponseError : 1;
-#endif
-  uint8_t  EvRequestedCurrentL1;
-  uint8_t  EvRequestedCurrentL2;
-  uint8_t  EvRequestedCurrentL3;
-  uint8_t  EvRequestedCurrentN;
+  unsigned int EvAwake: 1;
+  unsigned int EvStatusOp : 2;
+  unsigned int EvStatusInit : 2;
+  unsigned int EvStatusVer : 2;
+  unsigned int EvResponseError: 1;
+  uint8_t EvRequestedCurrentL1;
+  uint8_t EvRequestedCurrentL2;
+  uint8_t EvRequestedCurrentL3;
+  uint8_t EvRequestedCurrentN;
   uint16_t reserved;
 } EvStatus_t;
 
@@ -278,7 +247,19 @@ typedef struct {
   uint8_t EvErrorEntry6;
 } EvErrorList_t;
 
-//Frame: 15, SeID
+//Frame: 15, EvID
+typedef struct {
+  uint8_t EvIDPage;
+  uint8_t EvIDByteA;
+  uint8_t EvIDByteB;
+  uint8_t EvIDByteC;
+  uint8_t EvIDByteD;
+  uint8_t EvIDByteE;
+  uint8_t EvIDByteF;
+  uint8_t EvIDByteG;
+} EvID_t;
+
+//Frame: 16, SeID
 typedef struct {
   uint8_t SeIDPage;
   uint8_t SeIDByteA;
@@ -290,17 +271,6 @@ typedef struct {
   uint8_t SeIDByteG;
 } SeID_t;
 
-//Frame: 16, EvID
-typedef struct {
-  uint8_t EvIDPage;
-  uint8_t EvIDByteA;
-  uint8_t EvIDByteB;
-  uint8_t EvIDByteC;
-  uint8_t EvIDByteD;
-  uint8_t EvIDByteE;
-  uint8_t EvIDByteF;
-  uint8_t EvIDByteG;
-} EvID_t;
 
 //Frame: 17, Reserved 
 //Frame: 18, Reserved
@@ -377,8 +347,8 @@ extern FRAME_POINTER(EvMinVoltages);
 extern FRAME_POINTER(EvMaxMinCurrents);
 extern FRAME_POINTER(SeInfoList);
 extern FRAME_POINTER(EvInfoList);
-extern FRAME_POINTER(SeID);
 extern FRAME_POINTER(EvID);
+extern FRAME_POINTER(SeID);
 extern FRAME_POINTER(EvModeCtrl);
 extern FRAME_POINTER(SeModeCtrl);
 extern FRAME_POINTER(EvJ3072);
@@ -392,6 +362,7 @@ void verify_type_sizes();
 void print_generic_frame(uint8_t frame_number, generic_frame_t * frame);
 void print_LIN_record(FILE * stream, double time_end, uint8_t frame_number, generic_frame_t * frame);
 void print_specific_frame(FILE * stream, uint8_t frame_number, void * frame);
+void print_generic_frame_complete(FILE * stream, uint8_t frame_number, generic_frame_t * frame);
 void print_all_frames(generic_frame_t * frames);
 void init_all_frames(generic_frame_t * frames);
 

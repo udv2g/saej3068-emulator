@@ -175,6 +175,16 @@ void InitializeLINvariables(uint8_t ch) {
   //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
   //set_priority_info_code(ch, EVINFOENTRY_EMS_CHARGING_DELAYED);
   //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  //set_info_code(ch, EVINFOENTRY_INT_FAULT_RESTART);
+  
   //clear_info_code(ch, EVINFOENTRY_VERSION_FAILS);
 
   //print_all_info_codes(ch);
@@ -544,13 +554,23 @@ void InitializeLINvariables(uint8_t ch) {
   j3072_init(ch);
 
   //testing info codes {
-  //set_info_code(ch, SEINFOENTRY_PILOT_FAULT);
-  //set_info_code(ch, SEINFOENTRY_CONTACTOR_FAULT);
-  //set_info_code(ch, SEINFOENTRY_INPUT_MISWIRED);
+  set_info_code(ch, SEINFOENTRY_PILOT_FAULT);
+  set_info_code(ch, SEINFOENTRY_CONTACTOR_FAULT);
+  set_info_code(ch, SEINFOENTRY_INPUT_MISWIRED);
+  set_info_code(ch, SEINFOENTRY_INPUT_OVER_VOLTAGE);
+  set_info_code(ch, SEINFOENTRY_INPUT_UNDER_VOLTAGE);
+  set_info_code(ch, SEINFOENTRY_CCID_SELF_TEST_FAULT);
+  set_info_code(ch, SEINFOENTRY_CCID_TRIPPED_RETRY);
+  set_info_code(ch, SEINFOENTRY_CCID_TRIPPED_NO_RETRY);
+  set_info_code(ch, SEINFOENTRY_BREAKER_TRIPPED);
+  set_info_code(ch, SEINFOENTRY_GROUND_MONITOR_FAULT);
+  set_info_code(ch, SEINFOENTRY_CONFIGURATION_ERROR);
+  set_info_code(ch, SEINFOENTRY_GROUND_FAULT);
+  set_info_code(ch, SEINFOENTRY_COMM_FAULT);
 
-  //print_all_info_codes(ch);
-  //}
-}
+  print_all_info_codes(ch);
+  }
+//}
 
 void WriteSeStatus(uint8_t ch) // Use in more places?
 {
