@@ -1,10 +1,9 @@
 #define rsvd  "Reserved"                //must be macro to be coalesced          
-#define mfr  "Manufacturer_Specific"    //by CodeWarrior                         
 const char * const EV_Info_Codes[] = {  "Depricated_Unspecified",                // 0       
                                         "Depricated_StStatusOp_not_ready",       // 1       
                                         "Depricated_EV_Energy_Management_Fault", // 2       
                                         "Depricated_User_Stop",                  // 3       
-                                        "Depricated_Maximum_current_too_low",    // 4       
+                                        "Depricated_Maximum_current_too_low",    // 4         
                                         rsvd,                                    // 5       
                                         rsvd,                                    // 6       
                                         rsvd,                                    // 7       
@@ -35,19 +34,19 @@ const char * const EV_Info_Codes[] = {  "Depricated_Unspecified",               
                                         "Interrupt_Clean",                       // 20      
                                         "Interrupt_Dirty",                       // 21      
                                         "Available_voltage_too_low",             // 22      
-                                        "Latch_or_lock_failure",                 // 23      
+                                        "Charging_Delayed_lock",                 // 23      
                                         "Paging_error",                          // 24      
-                                        "EvMinCurrentX_required",                // 25      
-                                        "Charging_complete",                     // 26      
-                                        "Charging_temporarily_prevented",        // 27      
-                                        "Charging_fatally_prevented",            // 28      
-                                        "Connection_incompatible",               // 29      
-                                        "Charging_delayed_for_ID",               // 2A      
-                                        "Charging_disallowed_for_ID",            // 2B      
-                                        "Proximity_Power_Requested",             // 2C      
-                                        rsvd,                                    // 2D      
+                                        "Load_requires_EvMinCurrentX",           // 25      
+                                        "HVESS_Full",                            // 26      
+                                        "Temporarily_Cannot_Charge",             // 27      
+                                        "Fatal_Charging_Error",                  // 28      
+                                        "Incompatible",                          // 29      
+                                        "Delayed_Identification",                // 2A      
+                                        "Disallowed_Identification",             // 2B      
+                                        "Prox_Power_Req",                        // 2C      
+                                        "Inlet_Over_temperature ",               // 2D      
                                         rsvd,                                    // 2E      
-                                        rsvd,                                    // 2F      
+                                        "Prox_Out_of_Range ",                    // 2F      
                                         rsvd,                                    // 30      
                                         rsvd,                                    // 31      
                                         rsvd,                                    // 32      
@@ -224,43 +223,43 @@ const char * const EV_Info_Codes[] = {  "Depricated_Unspecified",               
                                         rsvd,                                    // DD      
                                         rsvd,                                    // DE      
                                         rsvd,                                    // DF      
-                                        mfr,                                     // E0      
-                                        mfr,                                     // E1      
-                                        mfr,                                     // E2      
-                                        mfr,                                     // E3      
-                                        mfr,                                     // E4      
-                                        mfr,                                     // E5      
-                                        mfr,                                     // E6      
-                                        mfr,                                     // E7      
-                                        mfr,                                     // E8      
-                                        mfr,                                     // E9      
-                                        mfr,                                     // EA      
-                                        mfr,                                     // EB      
-                                        mfr,                                     // EC      
-                                        mfr,                                     // ED      
-                                        mfr,                                     // EE      
-                                        mfr,                                     // EF      
-                                        mfr,                                     // F0      
-                                        mfr,                                     // F1      
-                                        mfr,                                     // F2      
-                                        mfr,                                     // F3      
-                                        mfr,                                     // F4      
-                                        mfr,                                     // F5      
-                                        mfr,                                     // F6      
-                                        mfr,                                     // F7      
-                                        mfr,                                     // F8      
-                                        mfr,                                     // F9      
-                                        mfr,                                     // FA      
-                                        mfr,                                     // FB      
-                                        mfr,                                     // FC      
-                                        mfr,                                     // FD      
-                                        mfr,                                     // FE      
+                                        rsvd,                                    // E0      
+                                        rsvd,                                    // E1      
+                                        rsvd,                                    // E2      
+                                        rsvd,                                    // E3      
+                                        rsvd,                                    // E4      
+                                        rsvd,                                    // E5      
+                                        rsvd,                                    // E6      
+                                        rsvd,                                    // E7      
+                                        rsvd,                                    // E8      
+                                        rsvd,                                    // E9      
+                                        rsvd,                                    // EA      
+                                        rsvd,                                    // EB      
+                                        rsvd,                                    // EC      
+                                        rsvd,                                    // ED      
+                                        rsvd,                                    // EE      
+                                        rsvd,                                    // EF      
+                                        rsvd,                                    // F0      
+                                        rsvd,                                    // F1      
+                                        rsvd,                                    // F2      
+                                        rsvd,                                    // F3      
+                                        rsvd,                                    // F4      
+                                        rsvd,                                    // F5      
+                                        rsvd,                                    // F6      
+                                        rsvd,                                    // F7      
+                                        rsvd,                                    // F8      
+                                        rsvd,                                    // F9      
+                                        rsvd,                                    // FA      
+                                        rsvd,                                    // FB      
+                                        rsvd,                                    // FC      
+                                        rsvd,                                    // FD      
+                                        rsvd,                                    // FE      
                                         "Empty",                                 // FF      
                                         };                                       
-const char * const SE_Info_Codes[] = {  "Depricated_Unspecified",                // 0       
-                                        "Depricated_sleep",                      // 1       
-                                        "Depricated_Energy_Unavailable",         // 2       
-                                        "Depricated_User_Stop",                  // 3       
+const char * const SE_Info_Codes[] = {  rsvd,                                    // 0       
+                                        rsvd,                                    // 1       
+                                        rsvd,                                    // 2       
+                                        rsvd,                                    // 3       
                                         rsvd,                                    // 4       
                                         rsvd,                                    // 5       
                                         rsvd,                                    // 6       
@@ -310,14 +309,14 @@ const char * const SE_Info_Codes[] = {  "Depricated_Unspecified",               
                                         "Internal_Fault",                        // 32      
                                         "Available_voltage_too_low",             // 33      
                                         "Paging_error",                          // 34      
-                                        "Connection_incompatible",               // 35      
-                                        "Charging_delayed_for_ID",               // 36      
-                                        "Charging_delayed_for_payment",          // 37      
-                                        "Charging_disallowed_for_ID",            // 38      
-                                        "Req_impossible_Max_charge",             // 39      
-                                        "Unlock_requested",                      // 3A      
-                                        "Proximity_Power_Requested",             // 3B      
-                                        rsvd,                                    // 3C      
+                                        "Incompatible",                          // 35      
+                                        "Delayed_Identification",                // 36      
+                                        "Delayed_Payment",                       // 37      
+                                        "Disallowed_Identification",             // 38      
+                                        "Cannot_Fill",                           // 39      
+                                        "Unlock_Req",                            // 3A      
+                                        "Prox_Power_Req",                        // 3B      
+                                        "Prox_Out_of_Range ",                    // 3C      
                                         rsvd,                                    // 3D      
                                         rsvd,                                    // 3E      
                                         rsvd,                                    // 3F      
@@ -481,36 +480,36 @@ const char * const SE_Info_Codes[] = {  "Depricated_Unspecified",               
                                         rsvd,                                    // DD      
                                         rsvd,                                    // DE      
                                         rsvd,                                    // DF      
-                                        mfr,                                     // E0      
-                                        mfr,                                     // E1      
-                                        mfr,                                     // E2      
-                                        mfr,                                     // E3      
-                                        mfr,                                     // E4      
-                                        mfr,                                     // E5      
-                                        mfr,                                     // E6      
-                                        mfr,                                     // E7      
-                                        mfr,                                     // E8      
-                                        mfr,                                     // E9      
-                                        mfr,                                     // EA      
-                                        mfr,                                     // EB      
-                                        mfr,                                     // EC      
-                                        mfr,                                     // ED      
-                                        mfr,                                     // EE      
-                                        mfr,                                     // EF      
-                                        mfr,                                     // F0      
-                                        mfr,                                     // F1      
-                                        mfr,                                     // F2      
-                                        mfr,                                     // F3      
-                                        mfr,                                     // F4      
-                                        mfr,                                     // F5      
-                                        mfr,                                     // F6      
-                                        mfr,                                     // F7      
-                                        mfr,                                     // F8      
-                                        mfr,                                     // F9      
-                                        mfr,                                     // FA      
-                                        mfr,                                     // FB      
-                                        mfr,                                     // FC      
-                                        mfr,                                     // FD      
-                                        mfr,                                     // FE      
+                                        rsvd,                                    // E0      
+                                        rsvd,                                    // E1      
+                                        rsvd,                                    // E2      
+                                        rsvd,                                    // E3      
+                                        rsvd,                                    // E4      
+                                        rsvd,                                    // E5      
+                                        rsvd,                                    // E6      
+                                        rsvd,                                    // E7      
+                                        rsvd,                                    // E8      
+                                        rsvd,                                    // E9      
+                                        rsvd,                                    // EA      
+                                        rsvd,                                    // EB      
+                                        rsvd,                                    // EC      
+                                        rsvd,                                    // ED      
+                                        rsvd,                                    // EE      
+                                        rsvd,                                    // EF      
+                                        rsvd,                                    // F0      
+                                        rsvd,                                    // F1      
+                                        rsvd,                                    // F2      
+                                        rsvd,                                    // F3      
+                                        rsvd,                                    // F4      
+                                        rsvd,                                    // F5      
+                                        rsvd,                                    // F6      
+                                        rsvd,                                    // F7      
+                                        rsvd,                                    // F8      
+                                        rsvd,                                    // F9      
+                                        rsvd,                                    // FA      
+                                        rsvd,                                    // FB      
+                                        rsvd,                                    // FC      
+                                        rsvd,                                    // FD      
+                                        rsvd,                                    // FE      
                                         "Empty",                                 // FF      
                                         };                                       

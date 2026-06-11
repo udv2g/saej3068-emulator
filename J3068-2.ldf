@@ -313,17 +313,7 @@ Frames {
     EvErrorCode5, 48 ;
     EvErrorCode6, 56 ;
   }
-  SeID: 15, EVSE_Master, 8 {
-    SeIDPage, 0 ;
-    SeIDByteA, 8 ;
-    SeIDByteB, 16 ;
-    SeIDByteC, 24 ;
-    SeIDByteD, 32 ;
-    SeIDByteE, 40 ;
-    SeIDByteF, 48 ;
-    SeIDByteG, 56 ;
-  }
-  EvID: 16, VehicleAC_charger_slave, 8 {
+  EvID: 15, VehicleAC_charger_slave, 8 {
     EvIDPage, 0 ;
     EvIDByteA, 8 ;
     EvIDByteB, 16 ;
@@ -332,6 +322,16 @@ Frames {
     EvIDByteE, 40 ;
     EvIDByteF, 48 ;
     EvIDByteG, 56 ;
+  }
+    SeID: 16, EVSE_Master, 8 {
+    SeIDPage, 0 ;
+    SeIDByteA, 8 ;
+    SeIDByteB, 16 ;
+    SeIDByteC, 24 ;
+    SeIDByteD, 32 ;
+    SeIDByteE, 40 ;
+    SeIDByteF, 48 ;
+    SeIDByteG, 56 ;
   }
   EvModeCtrl: 21, VehicleAC_charger_slave, 8 {
     EvGridCodeStatusMod, 0 ;

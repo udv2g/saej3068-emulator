@@ -5,6 +5,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* Endianness guard: GCC and Clang both predefine these macros. */
+#if !defined(__BYTE_ORDER__) || !defined(__ORDER_LITTLE_ENDIAN__)
+#error "Compiler does not define __BYTE_ORDER__ / __ORDER_LITTLE_ENDIAN__"
+#endif
+
 #define NUMBER_OF_FRAMES 26 //64 for complete LIN
 
 #define GENERATE_TEXT_LOG
@@ -68,14 +73,22 @@ typedef struct {
   uint8_t data[8];
 } generic_frame_t;
 
-//Frame: 0, SeVersionList
+/* Frame: 0, SeVersionList */
 typedef struct {
   uint8_t SeSelectedVersion;
-  unsigned int : 1;
-  unsigned int SeStatusOp : 2;
-  unsigned int SeStatusInit : 2;
-  unsigned int SeStatusVer : 2;
-  unsigned int : 1;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  unsigned int                 : 1;  /* bit 8  (LSB of byte 1) */
+  unsigned int SeStatusVer     : 2;  /* bits 9-10  */
+  unsigned int SeStatusInit    : 2;  /* bits 11-12 */
+  unsigned int SeStatusOp      : 2;  /* bits 13-14 */
+  unsigned int                 : 1;  /* bit 15 (MSB) */
+#else /* __ORDER_BIG_ENDIAN__ */
+  unsigned int                 : 1;
+  unsigned int SeStatusOp      : 2;
+  unsigned int SeStatusInit    : 2;
+  unsigned int SeStatusVer     : 2;
+  unsigned int                 : 1;
+#endif
   uint8_t SeVersionPageNumber;
   uint8_t SeSupportedVersion1;
   uint8_t SeSupportedVersion2;
@@ -84,14 +97,22 @@ typedef struct {
   uint8_t SeSupportedVersion5;
 } SeVersionList_t;
 
-//Frame: 1, EvVersionList
+/* Frame: 1, EvVersionList */
 typedef struct {
   uint8_t EvSelectedVersion;
-  unsigned int EvAwake: 1;
-  unsigned int EvStatusOp : 2;
-  unsigned int EvStatusInit : 2;
-  unsigned int EvStatusVer : 2;
-  unsigned int EvResponseError: 1;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  unsigned int EvResponseError : 1;  /* bit 8  (LSB of byte 1) */
+  unsigned int EvStatusVer     : 2;  /* bits 9-10  */
+  unsigned int EvStatusInit    : 2;  /* bits 11-12 */
+  unsigned int EvStatusOp      : 2;  /* bits 13-14 */
+  unsigned int EvAwake         : 1;  /* bit 15 (MSB) */
+#else /* __ORDER_BIG_ENDIAN__ */
+  unsigned int EvAwake         : 1;
+  unsigned int EvStatusOp      : 2;
+  unsigned int EvStatusInit    : 2;
+  unsigned int EvStatusVer     : 2;
+  unsigned int EvResponseError : 1;
+#endif
   uint8_t EvVersionPageNumber;
   uint8_t EvSupportedVersion1;
   uint8_t EvSupportedVersion2;
@@ -100,33 +121,49 @@ typedef struct {
   uint8_t EvSupportedVersion5;
 } EvVersionList_t;
 
-//Frame: 2, SeStatus
+/* Frame: 2, SeStatus */
 typedef struct {
   uint8_t SeSelectedVersion;
-  unsigned int : 1;
-  unsigned int SeStatusOp : 2;
-  unsigned int SeStatusInit : 2;
-  unsigned int SeStatusVer : 2;
-  unsigned int : 1;
-  uint8_t SeAvailableCurrentL1;
-  uint8_t SeAvailableCurrentL2;
-  uint8_t SeAvailableCurrentL3;
-  uint8_t SeAvailableCurrentN;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  unsigned int                 : 1;  /* bit 8  (LSB) */
+  unsigned int SeStatusVer     : 2;  /* bits 9-10  */
+  unsigned int SeStatusInit    : 2;  /* bits 11-12 */
+  unsigned int SeStatusOp      : 2;  /* bits 13-14 */
+  unsigned int                 : 1;  /* bit 15 (MSB) */
+#else /* __ORDER_BIG_ENDIAN__ */
+  unsigned int                 : 1;
+  unsigned int SeStatusOp      : 2;
+  unsigned int SeStatusInit    : 2;
+  unsigned int SeStatusVer     : 2;
+  unsigned int                 : 1;
+#endif
+  uint8_t  SeAvailableCurrentL1;
+  uint8_t  SeAvailableCurrentL2;
+  uint8_t  SeAvailableCurrentL3;
+  uint8_t  SeAvailableCurrentN;
   uint16_t reserved;
 } SeStatus_t;
 
-//Frame: 3, EvStatus
+/* Frame: 3, EvStatus */
 typedef struct {
   uint8_t EvSelectedVersion;
-  unsigned int EvAwake: 1;
-  unsigned int EvStatusOp : 2;
-  unsigned int EvStatusInit : 2;
-  unsigned int EvStatusVer : 2;
-  unsigned int EvResponseError: 1;
-  uint8_t EvRequestedCurrentL1;
-  uint8_t EvRequestedCurrentL2;
-  uint8_t EvRequestedCurrentL3;
-  uint8_t EvRequestedCurrentN;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  unsigned int EvResponseError : 1;  /* bit 8  (LSB) */
+  unsigned int EvStatusVer     : 2;  /* bits 9-10  */
+  unsigned int EvStatusInit    : 2;  /* bits 11-12 */
+  unsigned int EvStatusOp      : 2;  /* bits 13-14 */
+  unsigned int EvAwake         : 1;  /* bit 15 (MSB) */
+#else /* __ORDER_BIG_ENDIAN__ */
+  unsigned int EvAwake         : 1;
+  unsigned int EvStatusOp      : 2;
+  unsigned int EvStatusInit    : 2;
+  unsigned int EvStatusVer     : 2;
+  unsigned int EvResponseError : 1;
+#endif
+  uint8_t  EvRequestedCurrentL1;
+  uint8_t  EvRequestedCurrentL2;
+  uint8_t  EvRequestedCurrentL3;
+  uint8_t  EvRequestedCurrentN;
   uint16_t reserved;
 } EvStatus_t;
 

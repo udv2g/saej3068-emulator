@@ -1,0 +1,14 @@
+# Ignore files/folders in base directory starting with a dot
+.*
+*.o
+*.log
+*.txt
+*.gch
+*.asc
+
+# Ignore executable called "se" in base directory
+/se
+/ev
+/bus
+
+
